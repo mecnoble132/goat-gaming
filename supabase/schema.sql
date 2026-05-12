@@ -204,3 +204,21 @@ insert into public.products (id, name, category, mrp, stock_quantity, low_stock_
 ('PRD-007', 'Cold Coffee', 'Drinks', 80, 8, 3),
 ('PRD-008', 'Water Bottle', 'Drinks', 20, 50, 10)
 on conflict (id) do nothing;
+
+-- Placeholder Customers
+insert into public.customers (name, phone, whatsapp_number, loyalty_points, created_at) values
+('Rahul Sharma', '9876543210', '9876543210', 450, now() - interval '30 days'),
+('Sneha Kapoor', '9888877777', '9888877777', 120, now() - interval '25 days'),
+('Vikram Singh', '9811112222', '9811112222', 890, now() - interval '20 days'),
+('Ananya Iyer', '9822223333', '9822223333', 0, now() - interval '18 days'),
+('Arjun Mehra', '9833334444', '9833334444', 2100, now() - interval '15 days'),
+('Pooja Verma', '9844445555', '9844445555', 75, now() - interval '12 days'),
+('Rohan Das', '9855556666', '9855556666', 320, now() - interval '10 days'),
+('Kritika Malhotra', '9866667777', '9866667777', 150, now() - interval '8 days'),
+('Siddharth Jain', '9877778888', '9877778888', 500, now() - interval '5 days'),
+('Ishita Gupta', '9888889999', '9888889999', 45, now() - interval '3 days'),
+('Manish Pandey', '9899990000', '9899990000', 1200, now() - interval '2 days'),
+('Tanvi Reddy', '9800001111', '9800001111', 0, now() - interval '1 day'),
+('Zeeshan Khan', '9811223344', '9811223344', 350, now() - interval '12 hours'),
+('Simran Kaur', '9822334455', '9822334455', 85, now() - interval '6 hours'),
+('Abhishek Ray', '9833445566', '9833445566', 15, now());

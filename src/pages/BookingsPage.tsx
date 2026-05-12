@@ -517,6 +517,7 @@ export default function BookingsPage({
           else if (next === 'Bookings') onNavigate?.('bookings');
           else if (next === 'Settings') onNavigate?.('settings');
           else if (next === 'Inventory') onNavigate?.('inventory');
+          else if (next === 'Customers') onNavigate?.('customers');
         }}
         onLogout={onLogout}
       />

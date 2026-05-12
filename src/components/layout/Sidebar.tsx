@@ -1,6 +1,6 @@
 import {
   CalendarCheck2,
-  Gamepad2,
+  Users,
   Home,
   LogOut,
   Settings,
@@ -13,6 +13,7 @@ import { Logo } from './Logo';
 const navItems = [
   { icon: Home, label: 'Billing' },
   { icon: CalendarCheck2, label: 'Bookings' },
+  { icon: Users, label: 'Customers' },
   { icon: Package, label: 'Inventory' },
   { icon: Settings, label: 'Settings' },
 ];
@@ -66,7 +67,7 @@ export function Sidebar({
       </nav>
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:hidden">
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-5 gap-1">
           {navItems.map((item) => (
             <button
               key={item.label}

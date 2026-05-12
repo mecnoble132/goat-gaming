@@ -118,6 +118,7 @@ export default function SettingsPage({
           if (next === 'Billing') onNavigate?.('billing');
           else if (next === 'Bookings') onNavigate?.('bookings');
           else if (next === 'Inventory') onNavigate?.('inventory');
+          else if (next === 'Customers') onNavigate?.('customers');
         }}
         onLogout={onLogout}
       />

@@ -208,6 +208,7 @@ export default function InventoryPage({
            if (next === 'Billing') onNavigate?.('billing');
            else if (next === 'Bookings') onNavigate?.('bookings');
            else if (next === 'Settings') onNavigate?.('settings');
+           else if (next === 'Customers') onNavigate?.('customers');
         }}
         onLogout={onLogout}
       />

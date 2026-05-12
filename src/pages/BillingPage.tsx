@@ -10,23 +10,6 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_PRICING_CONFIG, GamePricingConfig, normalizePricingConfig } from '@/lib/pricing';
 
-const initialCustomers: Customer[] = [
-  { id: 'CUS-1042', name: 'Arjun', phone: '9876543210', whatsapp_number: '9876543210', loyalty_points: 145, created_at: new Date().toISOString() },
-  { id: 'CUS-1043', name: 'Priya', phone: '9888877777', whatsapp_number: '9888877777', loyalty_points: 40, created_at: new Date().toISOString() },
-  { id: 'CUS-1044', name: 'Karan', phone: '9811112222', whatsapp_number: '9811112222', loyalty_points: 0, created_at: new Date().toISOString() },
-];
-
-const initialProducts: Product[] = [
-  { id: 'PRD-001', name: 'Red Bull', category: 'Drinks', mrp: 60, stock_quantity: 15, low_stock_threshold: 5 },
-  { id: 'PRD-002', name: 'Coca Cola', category: 'Drinks', mrp: 40, stock_quantity: 24, low_stock_threshold: 6 },
-  { id: 'PRD-003', name: 'Monster Energy', category: 'Drinks', mrp: 110, stock_quantity: 10, low_stock_threshold: 4 },
-  { id: 'PRD-004', name: 'Lays Classic', category: 'Snacks', mrp: 30, stock_quantity: 20, low_stock_threshold: 5 },
-  { id: 'PRD-005', name: 'Doritos Cheese', category: 'Snacks', mrp: 45, stock_quantity: 12, low_stock_threshold: 5 },
-  { id: 'PRD-006', name: 'Kurkure Masala', category: 'Snacks', mrp: 20, stock_quantity: 30, low_stock_threshold: 10 },
-  { id: 'PRD-007', name: 'Cold Coffee', category: 'Drinks', mrp: 80, stock_quantity: 8, low_stock_threshold: 3 },
-  { id: 'PRD-008', name: 'Water Bottle', category: 'Drinks', mrp: 20, stock_quantity: 50, low_stock_threshold: 10 },
-];
-
 const loyaltySettings = {
   earn_rate_points: 5,
   earn_rate_minutes: 30,
@@ -38,14 +21,14 @@ export default function BillingPage({
   onNavigate,
   onLogout,
 }: {
-  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory') => void;
+  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers') => void;
   onLogout?: () => void;
 }) {
   useEffect(() => {
     document.title = 'Billing · Goat Gaming';
   }, []);
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [billItems, setBillItems] = useState<BillItem[]>([]);
   const [pricingConfig, setPricingConfig] = useState<GamePricingConfig>(DEFAULT_PRICING_CONFIG);
@@ -62,6 +45,12 @@ export default function BillingPage({
       const { data: productData } = await supabase.from('products').select('*').order('name');
       if (productData && productData.length > 0) {
         setProducts(productData);
+      }
+
+      // Load Customers
+      const { data: customerData } = await supabase.from('customers').select('*').order('name');
+      if (customerData) {
+        setCustomers(customerData);
       }
     };
     loadData();
@@ -135,7 +124,7 @@ export default function BillingPage({
     toast.success(`Customer created · ${created.id}`);
   };
 
-  const handleFinalize = ({
+  const handleFinalize = async ({
     paymentMethod,
     subtotal,
     discount,
@@ -192,6 +181,18 @@ export default function BillingPage({
     }
 
     const updatedPoints = Math.max(0, selectedCustomer.loyalty_points - pointsRedeemed + pointsEarned);
+    
+    // Update customer in database
+    const { error: customerError } = await supabase
+      .from('customers')
+      .update({ loyalty_points: updatedPoints })
+      .eq('id', selectedCustomer.id);
+
+    if (customerError) {
+      toast.error('Failed to update loyalty points');
+      return;
+    }
+
     const updatedCustomer = { ...selectedCustomer, loyalty_points: updatedPoints };
     setCustomers((prev) => prev.map((c) => (c.id === selectedCustomer.id ? updatedCustomer : c)));
     setSelectedCustomer(updatedCustomer);
@@ -215,6 +216,7 @@ export default function BillingPage({
           if (label === 'Bookings') onNavigate?.('bookings');
           else if (label === 'Settings') onNavigate?.('settings');
           else if (label === 'Inventory') onNavigate?.('inventory');
+          else if (label === 'Customers') onNavigate?.('customers');
         }}
         onLogout={onLogout}
       />
