@@ -220,7 +220,7 @@ export default function BillingPage({
         }}
         onLogout={onLogout}
       />
-      <main className="flex-1 pb-24 md:ml-64 md:pb-0">
+      <main className="flex-1 pb-24 md:ml-64 md:pb-0 overflow-x-hidden">
         {/* Header */}
         <PageHeader title="Billing" />
 

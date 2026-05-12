@@ -223,7 +223,7 @@ export default function CustomersPage({
         onLogout={onLogout}
       />
       
-      <main className="flex-1 pb-24 md:ml-64 md:pb-0">
+      <main className="flex-1 pb-24 md:ml-64 md:pb-0 overflow-x-hidden">
         <PageHeader 
           title="Customers" 
           actions={
@@ -322,7 +322,7 @@ export default function CustomersPage({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/50 bg-background/40 shadow-xl overflow-hidden backdrop-blur-md">
+          <div className="rounded-xl border border-border/50 bg-background/40 shadow-xl overflow-hidden backdrop-blur-md max-w-full">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
