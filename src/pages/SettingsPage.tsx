@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
@@ -14,7 +15,7 @@ export default function SettingsPage({
   onNavigate,
   onLogout,
 }: {
-  onNavigate?: (next: 'billing' | 'bookings' | 'settings') => void;
+  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory') => void;
   onLogout?: () => void;
 }) {
   const [stations, setStations] = useState<EditableStation[]>([]);
@@ -113,16 +114,22 @@ export default function SettingsPage({
     <div className="flex min-h-screen bg-background">
       <Sidebar
         active="Settings"
-        onNavigate={(next) => (next === 'Billing' ? onNavigate?.('billing') : next === 'Bookings' ? onNavigate?.('bookings') : undefined)}
+        onNavigate={(next) => {
+          if (next === 'Billing') onNavigate?.('billing');
+          else if (next === 'Bookings') onNavigate?.('bookings');
+          else if (next === 'Inventory') onNavigate?.('inventory');
+        }}
         onLogout={onLogout}
       />
       <main className="flex-1 pb-24 md:ml-64 md:pb-0">
-        <header className="sticky top-0 z-40 hidden h-14 items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-xl px-4 md:flex">
-          <h2 className="text-lg font-bold tracking-tight">Settings</h2>
-          <Button onClick={saveAll} disabled={saving || loading}>
-            {saving ? 'Saving...' : 'Save all changes'}
-          </Button>
-        </header>
+        <PageHeader 
+          title="Settings" 
+          actions={
+            <Button onClick={saveAll} disabled={saving || loading}>
+              {saving ? 'Saving...' : 'Save all changes'}
+            </Button>
+          }
+        />
 
         <div className="mx-auto w-full max-w-[1600px] space-y-4 p-3 sm:p-4">
           {loading ? <div className="rounded-md border border-border/50 bg-background/40 p-4 text-sm text-muted-foreground">Loading settings...</div> : null}

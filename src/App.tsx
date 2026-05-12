@@ -12,6 +12,7 @@ import AuthPage from './pages/AuthPage';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import SettingsPage from './pages/SettingsPage';
+import InventoryPage from './pages/InventoryPage';
 
 const queryClient = new QueryClient();
 
@@ -25,7 +26,7 @@ export default function App() {
     await supabase.auth.signOut();
   };
 
-  const [page, setPage] = useState<'billing' | 'bookings' | 'settings'>('billing');
+  const [page, setPage] = useState<'billing' | 'bookings' | 'settings' | 'inventory'>('billing');
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -54,7 +55,9 @@ export default function App() {
         ) : page === 'billing' ? (
           <BillingPage onNavigate={(next) => setPage(next)} onLogout={handleLogout} />
         ) : page === 'bookings' ? (
-          <BookingsPage onNavigateToBilling={() => setPage('billing')} onNavigateToSettings={() => setPage('settings')} onLogout={handleLogout} />
+          <BookingsPage onNavigate={(next) => setPage(next)} onLogout={handleLogout} />
+        ) : page === 'inventory' ? (
+          <InventoryPage onNavigate={(next) => setPage(next)} onLogout={handleLogout} />
         ) : (
           <SettingsPage onNavigate={(next) => setPage(next)} onLogout={handleLogout} />
         )}

@@ -1,17 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { CustomerStrip } from '@/components/billing/CustomerStrip';
 import { GameTabs } from '@/components/billing/GameTabs';
 import { BillSummary } from '@/components/billing/BillSummary';
 import { Customer, BillItem, Product } from '@/types';
-import { 
-  Bell, 
-  HelpCircle, 
-  Search,
-} from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_PRICING_CONFIG, GamePricingConfig, normalizePricingConfig } from '@/lib/pricing';
@@ -23,13 +17,14 @@ const initialCustomers: Customer[] = [
 ];
 
 const initialProducts: Product[] = [
-  { id: 'P-1', name: 'Red Bull', category: 'Drinks', mrp: 60, stock_quantity: 12, low_stock_threshold: 4 },
-  { id: 'P-2', name: 'Coke', category: 'Drinks', mrp: 40, stock_quantity: 20, low_stock_threshold: 5 },
-  { id: 'P-3', name: 'Water Bottle', category: 'Drinks', mrp: 20, stock_quantity: 35, low_stock_threshold: 8 },
-  { id: 'P-4', name: 'Doritos', category: 'Snacks', mrp: 40, stock_quantity: 6, low_stock_threshold: 4 },
-  { id: 'P-5', name: 'Lays', category: 'Snacks', mrp: 30, stock_quantity: 0, low_stock_threshold: 4 },
-  { id: 'P-6', name: 'Cold Coffee', category: 'Drinks', mrp: 80, stock_quantity: 7, low_stock_threshold: 4 },
-  { id: 'P-7', name: 'Monster', category: 'Drinks', mrp: 110, stock_quantity: 5, low_stock_threshold: 3 },
+  { id: 'PRD-001', name: 'Red Bull', category: 'Drinks', mrp: 60, stock_quantity: 15, low_stock_threshold: 5 },
+  { id: 'PRD-002', name: 'Coca Cola', category: 'Drinks', mrp: 40, stock_quantity: 24, low_stock_threshold: 6 },
+  { id: 'PRD-003', name: 'Monster Energy', category: 'Drinks', mrp: 110, stock_quantity: 10, low_stock_threshold: 4 },
+  { id: 'PRD-004', name: 'Lays Classic', category: 'Snacks', mrp: 30, stock_quantity: 20, low_stock_threshold: 5 },
+  { id: 'PRD-005', name: 'Doritos Cheese', category: 'Snacks', mrp: 45, stock_quantity: 12, low_stock_threshold: 5 },
+  { id: 'PRD-006', name: 'Kurkure Masala', category: 'Snacks', mrp: 20, stock_quantity: 30, low_stock_threshold: 10 },
+  { id: 'PRD-007', name: 'Cold Coffee', category: 'Drinks', mrp: 80, stock_quantity: 8, low_stock_threshold: 3 },
+  { id: 'PRD-008', name: 'Water Bottle', category: 'Drinks', mrp: 20, stock_quantity: 50, low_stock_threshold: 10 },
 ];
 
 const loyaltySettings = {
@@ -43,7 +38,7 @@ export default function BillingPage({
   onNavigate,
   onLogout,
 }: {
-  onNavigate?: (next: 'billing' | 'bookings' | 'settings') => void;
+  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory') => void;
   onLogout?: () => void;
 }) {
   useEffect(() => {
@@ -56,13 +51,20 @@ export default function BillingPage({
   const [pricingConfig, setPricingConfig] = useState<GamePricingConfig>(DEFAULT_PRICING_CONFIG);
 
   useEffect(() => {
-    const loadPricing = async () => {
-      const { data } = await supabase.from('pricing_settings').select('config').eq('id', 1).maybeSingle();
-      if (data?.config) {
-        setPricingConfig(normalizePricingConfig(data.config));
+    const loadData = async () => {
+      // Load Pricing
+      const { data: pricingData } = await supabase.from('pricing_settings').select('config').eq('id', 1).maybeSingle();
+      if (pricingData?.config) {
+        setPricingConfig(normalizePricingConfig(pricingData.config));
+      }
+
+      // Load Products
+      const { data: productData } = await supabase.from('products').select('*').order('name');
+      if (productData && productData.length > 0) {
+        setProducts(productData);
       }
     };
-    loadPricing();
+    loadData();
   }, []);
 
   const addItem = (item: Omit<BillItem, 'id' | 'bill_id'>) => {
@@ -95,8 +97,16 @@ export default function BillingPage({
   const updateQuantity = (id: string, delta: number) => {
     setBillItems(prev => prev.map(i => {
       if (i.id === id && i.item_type === 'product') {
+        const product = products.find(p => p.id === i.metadata?.product_id);
         const newQty = Math.max(0, i.quantity + delta);
         if (newQty === 0) return i;
+        
+        // Check stock if increasing
+        if (delta > 0 && product && newQty > product.stock_quantity) {
+          toast.error(`Only ${product.stock_quantity} units available in stock`);
+          return i;
+        }
+        
         return { ...i, quantity: newQty, total_price: newQty * i.unit_price };
       }
       return i;
@@ -142,17 +152,42 @@ export default function BillingPage({
     pointsRedeemed: number;
     isUnlinked: boolean;
   }) => {
-    setProducts((prev) =>
-      prev.map((product) => {
-        const used = productQuantityById[product.id] ?? 0;
-        return used > 0 ? { ...product, stock_quantity: Math.max(0, product.stock_quantity - used) } : product;
-      })
-    );
+    const updateStock = async () => {
+      // Group products from billItems by product_id to be safe
+      const productCounts: Record<string, number> = {};
+      billItems.forEach(item => {
+        if (item.item_type === 'product' && item.metadata?.product_id) {
+          productCounts[item.metadata.product_id] = (productCounts[item.metadata.product_id] || 0) + item.quantity;
+        }
+      });
 
-    if (isUnlinked || !selectedCustomer) {
-      toast.success(`Bill saved · ₹${Math.round(grandTotal)} · Unlinked`);
-      setBillItems([]);
-      setSelectedCustomer(null);
+      // Update each product in Supabase
+      for (const [productId, usedQty] of Object.entries(productCounts)) {
+        // Fetch fresh stock count from DB
+        const { data: currentProduct } = await supabase
+          .from('products')
+          .select('stock_quantity')
+          .eq('id', productId)
+          .single();
+
+        if (currentProduct) {
+          const newStock = Math.max(0, currentProduct.stock_quantity - usedQty);
+          await supabase
+            .from('products')
+            .update({ stock_quantity: newStock })
+            .eq('id', productId);
+        }
+      }
+
+      // Refresh local products list
+      const { data } = await supabase.from('products').select('*').order('name');
+      if (data) setProducts(data);
+    };
+
+    updateStock();
+
+    if (!selectedCustomer) {
+      toast.error('Please select or create a customer first');
       return;
     }
 
@@ -160,8 +195,10 @@ export default function BillingPage({
     const updatedCustomer = { ...selectedCustomer, loyalty_points: updatedPoints };
     setCustomers((prev) => prev.map((c) => (c.id === selectedCustomer.id ? updatedCustomer : c)));
     setSelectedCustomer(updatedCustomer);
-    toast.success(`Bill saved · ₹${Math.round(grandTotal)} · ${pointsEarned} pts credited to ${selectedCustomer.name || selectedCustomer.phone}`);
-
+    
+    const displayName = selectedCustomer.name || selectedCustomer.phone;
+    toast.success(`Bill saved · ₹${Math.round(grandTotal)} · ${displayName}`);
+    
     if (selectedCustomer?.whatsapp_number) {
       toast.info(`WhatsApp queued to ${selectedCustomer.whatsapp_number}`);
     }
@@ -174,35 +211,16 @@ export default function BillingPage({
     <div className="flex min-h-screen bg-background">
       <Sidebar
         active="Billing"
-        onNavigate={(label) =>
-          label === 'Bookings' ? onNavigate?.('bookings') : label === 'Settings' ? onNavigate?.('settings') : undefined
-        }
+        onNavigate={(label) => {
+          if (label === 'Bookings') onNavigate?.('bookings');
+          else if (label === 'Settings') onNavigate?.('settings');
+          else if (label === 'Inventory') onNavigate?.('inventory');
+        }}
         onLogout={onLogout}
       />
       <main className="flex-1 pb-24 md:ml-64 md:pb-0">
         {/* Header */}
-        <header className="sticky top-0 z-40 hidden h-14 items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-xl px-4 md:flex">
-          <h2 className="text-lg font-bold tracking-tight">Billing</h2>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-              <Input 
-                placeholder="Search customer, item..." 
-                className="h-9 w-64 pl-9 rounded-full bg-muted/30 border-border/50 focus-visible:ring-primary/50 transition-all hover:bg-muted/50"
-              />
-            </div>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Bell size={20} className="text-muted-foreground" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <HelpCircle size={20} className="text-muted-foreground" />
-            </Button>
-            <Avatar className="h-9 w-9 cursor-pointer border-2 border-border transition-colors hover:border-primary">
-              <AvatarImage src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=400&h=400&fit=crop" />
-              <AvatarFallback>AD</AvatarFallback>
-            </Avatar>
-          </div>
-        </header>
+        <PageHeader title="Billing" />
 
         {/* Customer Search Strip */}
         <CustomerStrip 

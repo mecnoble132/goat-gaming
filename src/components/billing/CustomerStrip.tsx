@@ -130,6 +130,21 @@ export function CustomerStrip({
                   }}
                   onFocus={() => setIsSearching(true)}
                 />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  {!isSearching && (
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="h-8 gap-2 text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm"
+                      onClick={() => {
+                        setIsSearching(true);
+                        setShowCreateForm(true);
+                      }}
+                    >
+                      <UserPlus size={14} /> New Customer
+                    </Button>
+                  )}
+                </div>
 
                 {isSearching && (
                   <div className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-xl border bg-popover shadow-xl animate-in fade-in slide-in-from-top-2">
@@ -165,6 +180,7 @@ export function CustomerStrip({
                             placeholder="Phone number (required)"
                             value={newPhone}
                             onChange={(e) => setNewPhone(e.target.value)}
+                            type="tel"
                           />
                           <label className="flex items-center gap-2 text-xs text-muted-foreground">
                             <input
@@ -182,7 +198,7 @@ export function CustomerStrip({
                             />
                           )}
                           <Button className="w-full" onClick={submitNewCustomer} disabled={!newPhone.trim()}>
-                            Save and attach customer
+                            {newName ? `Attach ${newName}` : 'Attach Customer'}
                           </Button>
                         </div>
                       ) : (

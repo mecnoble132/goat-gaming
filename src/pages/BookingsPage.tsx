@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, addMinutes, format, isSameDay, parseISO } from 'date-fns';
 import { Calendar, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -21,6 +22,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from '@/components/ui/dialog';
 
 type Customer = {
   id: string;
@@ -214,12 +222,10 @@ function CustomerPicker({
 }
 
 export default function BookingsPage({
-  onNavigateToBilling,
-  onNavigateToSettings,
+  onNavigate,
   onLogout,
 }: {
-  onNavigateToBilling?: () => void;
-  onNavigateToSettings?: () => void;
+  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory') => void;
   onLogout?: () => void;
 }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -339,10 +345,8 @@ export default function BookingsPage({
   const activeItem = useMemo(() => (activeId ? items.find((i) => i.id === activeId) : null), [items, activeId]);
 
   const openNew = (prefill?: Partial<typeof draft>) => {
-    if (isPastDay) return;
     const nextDate = (prefill?.date ?? selectedDate) as string;
     const nextStart = (prefill?.start_time ?? draft.start_time) as string;
-    if (nextDate === ymd(new Date()) && isPastStart(nextDate, nextStart)) return;
     setPanelMode('new');
     setActiveId(null);
     setDraft((d) => ({
@@ -494,7 +498,7 @@ export default function BookingsPage({
         station_name: activeItem.station_name,
       })
     );
-    onNavigateToBilling?.();
+    onNavigate?.('billing');
   };
 
   const selectedDateLabel = useMemo(() => {
@@ -508,24 +512,29 @@ export default function BookingsPage({
     <div className="flex min-h-screen bg-background">
       <Sidebar
         active="Bookings"
-        onNavigate={(next) =>
-          next === 'Billing' ? onNavigateToBilling?.() : next === 'Settings' ? onNavigateToSettings?.() : undefined
-        }
+        onNavigate={(next) => {
+          if (next === 'Billing') onNavigate?.('billing');
+          else if (next === 'Bookings') onNavigate?.('bookings');
+          else if (next === 'Settings') onNavigate?.('settings');
+          else if (next === 'Inventory') onNavigate?.('inventory');
+        }}
         onLogout={onLogout}
       />
       <main className="flex-1 pb-24 md:ml-64 md:pb-0">
-        <header className="sticky top-0 z-40 hidden h-14 items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-xl px-4 md:flex">
-          <h2 className="text-lg font-bold tracking-tight">Bookings</h2>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setView((v) => (v === 'grid' ? 'list' : 'grid'))}>
-              {view === 'grid' ? 'List view' : 'Grid view'}
-            </Button>
-            <Button size="sm" className="gap-2" onClick={() => openNew()} disabled={isPastDay}>
-              <Plus size={16} />
-              New booking
-            </Button>
-          </div>
-        </header>
+        <PageHeader 
+          title="Bookings" 
+          actions={
+            <>
+              <Button variant="outline" size="sm" onClick={() => setView((v) => (v === 'grid' ? 'list' : 'grid'))}>
+                {view === 'grid' ? 'List view' : 'Grid view'}
+              </Button>
+              <Button size="sm" className="gap-2" onClick={() => openNew()}>
+                <Plus size={16} />
+                New booking
+              </Button>
+            </>
+          }
+        />
 
         <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-4">
           {/* Today's overview strip */}
@@ -734,39 +743,17 @@ export default function BookingsPage({
           )}
         </div>
 
-        {/* Slide-in / bottom sheet */}
-        <div
-          className={cn(
-            'fixed inset-0 z-50 transition',
-            panelOpen ? 'pointer-events-auto' : 'pointer-events-none'
-          )}
-        >
-          <div
-            className={cn('absolute inset-0 bg-black/40 transition-opacity', panelOpen ? 'opacity-100' : 'opacity-0')}
-            onClick={() => setPanelOpen(false)}
-          />
-          <div
-            className={cn(
-              'absolute right-0 top-0 h-full w-full max-w-[520px] border-l border-border bg-background shadow-2xl transition-transform',
-              'md:w-[520px]',
-              panelOpen ? 'translate-x-0' : 'translate-x-full',
-              // on small screens behave like bottom sheet
-              'max-md:top-auto max-md:bottom-0 max-md:h-[75vh] max-md:max-w-none max-md:w-full max-md:border-l-0 max-md:border-t'
-            )}
-          >
-            <div className="flex items-center justify-between border-b border-border/50 p-4">
-              <div>
-                <div className="text-sm font-bold">
-                  {panelMode === 'new' ? 'New booking' : panelMode === 'edit' ? 'Edit booking' : 'Booking details'}
-                </div>
-                <div className="text-xs text-muted-foreground">{selectedDateLabel}</div>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setPanelOpen(false)}>
-                Close
-              </Button>
-            </div>
+        {/* Booking Dialog (Popup) */}
+        <Dialog open={panelOpen} onOpenChange={setPanelOpen}>
+          <DialogContent className="sm:max-w-[520px] bg-background/95 backdrop-blur-xl border-border/50 max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="border-b border-border/50 pb-4 mb-4">
+              <DialogTitle className="flex flex-col gap-1">
+                <span>{panelMode === 'new' ? 'New Booking' : panelMode === 'edit' ? 'Edit Booking' : 'Booking Details'}</span>
+                <span className="text-xs font-normal text-muted-foreground tracking-normal">{selectedDateLabel}</span>
+              </DialogTitle>
+            </DialogHeader>
 
-            <div className="h-full overflow-y-auto p-4 pb-36">
+            <div className="space-y-4">
               {panelMode === 'detail' && activeItem ? (
                 <div className="space-y-4">
                   {activeItem.kind === 'booking' ? (
@@ -802,7 +789,7 @@ export default function BookingsPage({
                         </div>
                       ) : null}
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 pt-2">
                         <Button variant="outline" onClick={openEdit} disabled={isPastDay || !!(activeItem as any).cancelled_at}>
                           Edit
                         </Button>
@@ -1034,27 +1021,34 @@ export default function BookingsPage({
                     />
                   </div>
 
-                  <Separator />
+                  <DialogFooter className="pt-4 border-t border-border/50">
+                    <Button
+                      className="w-full"
+                      disabled={
+                        isPastDay ||
+                        (draft.date === todayYmd && isPastStart(draft.date, draft.start_time)) ||
+                        (draft.kind === 'booking' && !draft.customer)
+                      }
+                      onClick={saveDraft}
+                    >
+                      Save Booking
+                    </Button>
+                  </DialogFooter>
                 </div>
               )}
             </div>
+          </DialogContent>
+        </Dialog>
 
-            {panelMode !== 'detail' ? (
-              <div className="absolute bottom-0 left-0 right-0 border-t border-border/50 bg-background/90 p-4 backdrop-blur">
-                <Button
-                  className="w-full"
-                  disabled={
-                    isPastDay ||
-                    (draft.date === todayYmd && isPastStart(draft.date, draft.start_time)) ||
-                    (draft.kind === 'booking' && !draft.customer)
-                  }
-                  onClick={saveDraft}
-                >
-                  Save
-                </Button>
-              </div>
-            ) : null}
-          </div>
+        {/* Mobile FAB */}
+        <div className="fixed bottom-[80px] right-6 z-50 md:hidden">
+          <Button 
+            className="h-14 w-14 rounded-full shadow-lg shadow-primary/30"
+            onClick={() => openNew()}
+            disabled={isPastDay}
+          >
+            <Plus size={24} />
+          </Button>
         </div>
       </main>
     </div>

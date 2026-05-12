@@ -34,6 +34,7 @@ export interface Product {
   mrp: number;
   stock_quantity: number;
   low_stock_threshold: number;
+  created_at?: string;
 }
 
 export interface Bill {
