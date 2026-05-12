@@ -65,7 +65,7 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
   const vrCricketOptions = effectivePricing.vr_cricket;
   const vrAdventureOptions = effectivePricing.vr_adventure;
 
-  const getPoints = (minutes: number) => (minutes / 30) * 5;
+  const getPoints = (minutes: number) => Math.floor(minutes / 30) * 5;
 
   const ps5Price = ps5Controllers && ps5Duration ? ps5Pricing[`${ps5Controllers}-${ps5Duration}`] ?? 0 : 0;
 

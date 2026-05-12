@@ -58,7 +58,7 @@ export function BillSummary({
   const nonVrMinutes = items
     .filter((item) => item.item_type === 'session' && !String(item.metadata?.game_type ?? '').startsWith('vr'))
     .reduce((acc, item) => acc + Number(item.metadata?.duration_minutes ?? 0), 0);
-  const earnablePoints = (nonVrMinutes / loyaltySettings.earn_rate_minutes) * loyaltySettings.earn_rate_points;
+  const earnablePoints = Math.floor(nonVrMinutes / loyaltySettings.earn_rate_minutes) * loyaltySettings.earn_rate_points;
 
   const redeemableSessions = items.filter(
     (item) => item.item_type === 'session' && ['ps5', 'snooker', 'pool'].includes(String(item.metadata?.game_type))

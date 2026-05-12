@@ -15,7 +15,7 @@ export default function SettingsPage({
   onNavigate,
   onLogout,
 }: {
-  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory') => void;
+  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers') => void;
   onLogout?: () => void;
 }) {
   const [stations, setStations] = useState<EditableStation[]>([]);
