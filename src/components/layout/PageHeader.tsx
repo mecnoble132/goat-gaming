@@ -13,7 +13,7 @@ export function PageHeader({ title, actions }: PageHeaderProps) {
         <Logo size="sm" iconOnly className="md:hidden" />
         <h2 className="text-lg md:text-xl font-bold tracking-tight text-foreground">{title}</h2>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3 overflow-x-auto no-scrollbar py-1">
         {actions}
       </div>
     </header>

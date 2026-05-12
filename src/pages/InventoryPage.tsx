@@ -218,7 +218,7 @@ export default function InventoryPage({
           title="Inventory" 
           actions={
             <>
-              <div className="relative">
+              <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
                 <Input 
                   placeholder="Search..." 
@@ -318,24 +318,35 @@ export default function InventoryPage({
           }
         />
 
-        <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-4 space-y-6">
+        <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-4 space-y-4 md:space-y-6">
+          {/* Mobile Search */}
+          <div className="relative md:hidden">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+            <Input 
+              placeholder="Search products..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-11 pl-10 rounded-xl bg-background/50 border-border/50 backdrop-blur-sm"
+            />
+          </div>
+
           {/* Inventory Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="rounded-xl border border-border/50 bg-background/40 p-4 shadow-sm">
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Items</div>
-              <div className="text-2xl font-black text-foreground italic">{stats.totalItems}</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            <div className="rounded-xl border border-border/50 bg-background/40 p-3 md:p-4 shadow-sm">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Items</div>
+              <div className="text-xl md:text-2xl font-black text-foreground italic">{stats.totalItems}</div>
             </div>
-            <div className="rounded-xl border border-border/50 bg-background/40 p-4 shadow-sm">
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Stock Value</div>
-              <div className="text-2xl font-black text-primary italic">₹{stats.totalStockValue.toLocaleString()}</div>
+            <div className="rounded-xl border border-border/50 bg-background/40 p-3 md:p-4 shadow-sm">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Stock Value</div>
+              <div className="text-xl md:text-2xl font-black text-primary italic">₹{stats.totalStockValue.toLocaleString()}</div>
             </div>
-            <div className="rounded-xl border border-border/50 bg-background/40 p-4 shadow-sm">
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Low Stock</div>
-              <div className="text-2xl font-black text-amber-500 italic">{stats.lowStockCount}</div>
+            <div className="rounded-xl border border-border/50 bg-background/40 p-3 md:p-4 shadow-sm">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Low Stock</div>
+              <div className="text-xl md:text-2xl font-black text-amber-500 italic">{stats.lowStockCount}</div>
             </div>
-            <div className="rounded-xl border border-border/50 bg-background/40 p-4 shadow-sm">
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Out of Stock</div>
-              <div className="text-2xl font-black text-red-500 italic">{stats.outOfStockCount}</div>
+            <div className="rounded-xl border border-border/50 bg-background/40 p-3 md:p-4 shadow-sm">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Out of Stock</div>
+              <div className="text-xl md:text-2xl font-black text-red-500 italic">{stats.outOfStockCount}</div>
             </div>
           </div>
 
@@ -344,11 +355,11 @@ export default function InventoryPage({
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-muted/30 border-b border-border/50">
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Price</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Stock</th>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Actions</th>
+                    <th className="px-3 md:px-6 py-3 md:py-4 text-[10px] md:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product</th>
+                    <th className="px-3 md:px-6 py-3 md:py-4 text-[10px] md:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</th>
+                    <th className="px-3 md:px-6 py-3 md:py-4 text-[10px] md:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Price</th>
+                    <th className="px-3 md:px-6 py-3 md:py-4 text-[10px] md:text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Stock</th>
+                    <th className="px-3 md:px-6 py-3 md:py-4 text-[10px] md:text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
@@ -372,22 +383,22 @@ export default function InventoryPage({
                       
                       return (
                         <tr key={product.id} className="hover:bg-muted/20 transition-colors group">
-                          <td className="px-6 py-4">
+                          <td className="px-3 md:px-6 py-3 md:py-4">
                             <div className="flex flex-col">
-                              <span className="font-bold text-foreground">{product.name}</span>
-                              <span className="text-[10px] text-muted-foreground font-mono">{product.id}</span>
+                              <span className="font-bold text-foreground text-sm md:text-base leading-tight">{product.name}</span>
+                              <span className="text-[9px] md:text-[10px] text-muted-foreground font-mono">{product.id}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <Badge variant="outline" className="bg-muted/50 border-border/50">
+                          <td className="px-3 md:px-6 py-3 md:py-4">
+                            <Badge variant="outline" className="bg-muted/50 border-border/50 text-[10px] px-1.5 py-0">
                               {product.category}
                             </Badge>
                           </td>
-                          <td className="px-6 py-4 font-mono font-bold text-emerald-400">
+                          <td className="px-3 md:px-6 py-3 md:py-4 font-mono font-bold text-emerald-400 text-sm md:text-base">
                             ₹{product.mrp}
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col items-center gap-2">
+                          <td className="px-3 md:px-6 py-3 md:py-4">
+                            <div className="flex flex-col items-center gap-1.5 md:gap-2">gap-2">
                               <div className="flex items-center gap-3">
                                 <button 
                                   className="h-7 w-7 rounded-full bg-muted flex items-center justify-center hover:bg-muted-foreground/20 transition-colors"
@@ -414,26 +425,26 @@ export default function InventoryPage({
                               ) : null}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex justify-end gap-2">
+                          <td className="px-3 md:px-6 py-3 md:py-4 text-right">
+                            <div className="flex justify-end gap-1 md:gap-2">
                               <Button 
                                 size="icon" 
                                 variant="ghost" 
-                                className="h-8 w-8 rounded-full hover:bg-primary/20 hover:text-primary"
+                                className="h-7 w-7 md:h-8 md:w-8 rounded-full hover:bg-primary/20 hover:text-primary"
                                 onClick={() => openEdit(product)}
                               >
-                                <Edit2 size={14} />
+                                <Edit2 size={12} md:size={14} />
                               </Button>
                               <Button 
                                 size="icon" 
                                 variant="ghost" 
-                                className="h-8 w-8 rounded-full hover:bg-red-500/20 hover:text-red-500"
+                                className="h-7 w-7 md:h-8 md:w-8 rounded-full hover:bg-red-500/20 hover:text-red-500"
                                 onClick={() => {
                                   setProductToDelete(product.id);
                                   setIsDeleteDialogOpen(true);
                                 }}
                               >
-                                <Trash2 size={14} />
+                                <Trash2 size={12} md:size={14} />
                               </Button>
                             </div>
                           </td>

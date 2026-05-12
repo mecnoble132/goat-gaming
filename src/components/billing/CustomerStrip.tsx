@@ -81,7 +81,7 @@ export function CustomerStrip({
   };
 
   return (
-    <div className="sticky top-[57px] z-30 w-full border-b border-border/50 bg-background/80 backdrop-blur-md md:top-0">
+    <div className="sticky top-[52px] md:top-0 z-30 w-full border-b border-border/50 bg-background/80 backdrop-blur-md">
       <div className="mx-auto max-w-[1600px] px-4 py-3">
         {selectedCustomer ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -135,13 +135,15 @@ export function CustomerStrip({
                     <Button 
                       variant="default" 
                       size="sm" 
-                      className="h-8 gap-2 text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm"
+                      className="h-8 gap-1 md:gap-2 text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm px-2 md:px-3"
                       onClick={() => {
                         setIsSearching(true);
                         setShowCreateForm(true);
                       }}
                     >
-                      <UserPlus size={14} /> New Customer
+                      <UserPlus size={12} className="md:w-[14px] md:h-[14px]" /> 
+                      <span className="hidden xs:inline">New Customer</span>
+                      <span className="xs:hidden">New</span>
                     </Button>
                   )}
                 </div>
