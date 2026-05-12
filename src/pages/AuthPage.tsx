@@ -23,7 +23,16 @@ export default function AuthPage() {
       if (signInError) throw signInError;
       setMessage('Signed in.');
     } catch (err: any) {
-      setError(err?.message ?? 'Authentication failed.');
+      let errorMsg = err?.message ?? 'Authentication failed.';
+      
+      // Check if it's likely a missing env var issue
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        errorMsg = 'Supabase environment variables are missing. Please check your Vercel configuration.';
+      } else if (errorMsg.toLowerCase().includes('api key')) {
+        errorMsg = 'Invalid Supabase API key. Please verify VITE_SUPABASE_ANON_KEY in Vercel.';
+      }
+      
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
