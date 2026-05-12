@@ -33,7 +33,7 @@ export default function InventoryPage({
   onNavigate,
   onLogout,
 }: {
-  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory') => void;
+  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers') => void;
   onLogout?: () => void;
 }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -398,7 +398,7 @@ export default function InventoryPage({
                             ₹{product.mrp}
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4">
-                            <div className="flex flex-col items-center gap-1.5 md:gap-2">gap-2">
+                            <div className="flex flex-col items-center gap-1.5 md:gap-2">
                               <div className="flex items-center gap-3">
                                 <button 
                                   className="h-7 w-7 rounded-full bg-muted flex items-center justify-center hover:bg-muted-foreground/20 transition-colors"
