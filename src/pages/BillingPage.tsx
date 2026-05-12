@@ -184,7 +184,7 @@ export default function BillingPage({
       if (data) setProducts(data);
     };
 
-    updateStock();
+    await updateStock();
 
     if (!selectedCustomer) {
       toast.error('Please select or create a customer first');

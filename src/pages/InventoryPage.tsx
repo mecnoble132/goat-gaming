@@ -41,6 +41,8 @@ export default function InventoryPage({
   const [search, setSearch] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   // Form State
@@ -84,6 +86,14 @@ export default function InventoryPage({
     );
   }, [products, search]);
 
+  const stats = useMemo(() => {
+    const totalItems = products.length;
+    const totalStockValue = products.reduce((acc, p) => acc + (p.mrp * p.stock_quantity), 0);
+    const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity <= p.low_stock_threshold).length;
+    const outOfStockCount = products.filter(p => p.stock_quantity === 0).length;
+    return { totalItems, totalStockValue, lowStockCount, outOfStockCount };
+  }, [products]);
+
   const handleSave = async () => {
     if (!formData.id || !formData.name || !formData.category) {
       toast.error('Please fill all required fields');
@@ -117,20 +127,25 @@ export default function InventoryPage({
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+  const handleDelete = async () => {
+    if (!productToDelete) return;
 
     try {
+      setActionLoading(true);
       const { error } = await supabase
         .from('products')
         .delete()
-        .eq('id', id);
+        .eq('id', productToDelete);
 
       if (error) throw error;
       toast.success('Product deleted');
+      setIsDeleteDialogOpen(false);
+      setProductToDelete(null);
       loadProducts();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -302,8 +317,28 @@ export default function InventoryPage({
           }
         />
 
-        <div className="p-4 sm:p-6 lg:p-8">
-          <div className="rounded-xl border border-border/50 bg-card/40 backdrop-blur-md overflow-hidden">
+        <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-4 space-y-6">
+          {/* Inventory Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="rounded-xl border border-border/50 bg-background/40 p-4 shadow-sm">
+              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Items</div>
+              <div className="text-2xl font-black text-foreground italic">{stats.totalItems}</div>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-background/40 p-4 shadow-sm">
+              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Stock Value</div>
+              <div className="text-2xl font-black text-primary italic">₹{stats.totalStockValue.toLocaleString()}</div>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-background/40 p-4 shadow-sm">
+              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Low Stock</div>
+              <div className="text-2xl font-black text-amber-500 italic">{stats.lowStockCount}</div>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-background/40 p-4 shadow-sm">
+              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Out of Stock</div>
+              <div className="text-2xl font-black text-red-500 italic">{stats.outOfStockCount}</div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/50 bg-background/40 shadow-xl overflow-hidden backdrop-blur-md">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -392,7 +427,10 @@ export default function InventoryPage({
                                 size="icon" 
                                 variant="ghost" 
                                 className="h-8 w-8 rounded-full hover:bg-red-500/20 hover:text-red-500"
-                                onClick={() => handleDelete(product.id)}
+                                onClick={() => {
+                                  setProductToDelete(product.id);
+                                  setIsDeleteDialogOpen(true);
+                                }}
                               >
                                 <Trash2 size={14} />
                               </Button>
@@ -407,6 +445,29 @@ export default function InventoryPage({
             </div>
           </div>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent className="sm:max-w-[400px] bg-background/95 backdrop-blur-xl border-border/50">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-500">
+                <AlertTriangle size={20} />
+                Confirm Deletion
+              </DialogTitle>
+              <div className="py-4 text-sm text-muted-foreground">
+                Are you sure you want to delete this product? This action cannot be undone and will remove it from the inventory.
+              </div>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)} disabled={actionLoading}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={actionLoading}>
+                {actionLoading ? 'Deleting...' : 'Delete Product'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         
         {/* Mobile FAB */}
         <div className="fixed bottom-[80px] right-6 z-50 md:hidden">
