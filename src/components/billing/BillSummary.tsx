@@ -158,21 +158,21 @@ export function BillSummary({
       </div>
 
       <div className="mt-auto border-t bg-muted/20 p-4 space-y-4">
-        {/* Loyalty Section */}
+        {/* GG Points Section */}
         {customer && (
           <div className="space-y-3">
             <div className="rounded-lg border border-border/50 bg-background/40 p-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Points earned (this bill)</span>
-                <span className="font-mono font-bold text-secondary">+{Math.round(earnablePoints)} pts</span>
+                <span className="text-muted-foreground">GG Points earned (this bill)</span>
+                <span className="font-mono font-bold text-secondary">+{Math.round(earnablePoints)} GG pts</span>
               </div>
               <div className="mt-1 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Points available</span>
-                <span className="font-mono font-bold">{customer.loyalty_points} pts</span>
+                <span className="text-muted-foreground">GG Points available</span>
+                <span className="font-mono font-bold">{customer.loyalty_points} GG pts</span>
               </div>
               <div className="mt-1 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Points redeemable (free hours)</span>
-                <span className="font-mono font-bold">{maxRedeemablePoints} pts</span>
+                <span className="text-muted-foreground">GG Points redeemable (free hours)</span>
+                <span className="font-mono font-bold">{maxRedeemablePoints} GG pts</span>
               </div>
             </div>
             <div
@@ -183,7 +183,7 @@ export function BillSummary({
               )}
             >
               <div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Use points for free hours</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Use GG points for free hours</p>
                 <p className="text-xs font-mono font-bold">
                   Redeemable: {Math.floor(maxHoursByPoints)} hour(s)
                 </p>
@@ -230,7 +230,7 @@ export function BillSummary({
                     </Select>
                   </>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Points can only be redeemed on PS5, Snooker, or Pool sessions.</p>
+                  <p className="text-xs text-muted-foreground">GG points can only be redeemed on PS5, Snooker, or Pool sessions.</p>
                 )}
               </div>
             )}
@@ -245,7 +245,7 @@ export function BillSummary({
           </div>
           {redeemPoints && (
             <div className="flex justify-between text-xs text-secondary">
-              <span>Loyalty Discount</span>
+              <span>GG Discount</span>
               <span className="font-mono">-₹{Math.round(discount)}</span>
             </div>
           )}

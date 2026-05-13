@@ -5,6 +5,7 @@ import {
   LogOut,
   Settings,
   Package,
+  BarChart2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ const navItems = [
   { icon: CalendarCheck2, label: 'Bookings' },
   { icon: Users, label: 'Customers' },
   { icon: Package, label: 'Inventory' },
+  { icon: BarChart2, label: 'Reports' },
   { icon: Settings, label: 'Settings' },
 ];
 
@@ -67,7 +69,7 @@ export function Sidebar({
       </nav>
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:hidden">
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-6 gap-1">
           {navItems.map((item) => (
             <button
               key={item.label}

@@ -1,6 +1,6 @@
 import { addMinutes, format, isAfter, isBefore, isSameDay, parseISO } from 'date-fns';
 
-export type StationType = 'ps5' | 'snooker' | 'pool' | 'vr';
+export type StationType = string;
 
 export type Station = {
   id: string;

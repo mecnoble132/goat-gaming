@@ -6,6 +6,18 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_PRICING_CONFIG, GamePricingConfig, normalizePricingConfig } from '@/lib/pricing';
 import { DEFAULT_SETTINGS, Station, StationType } from '@/lib/bookings';
+import { DEFAULT_LOYALTY_SETTINGS } from '@/lib/loyalty';
+import { LoyaltySettings } from '@/types';
+import { toast } from 'sonner';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogDescription
+} from '@/components/ui/dialog';
+import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
 
 type EditableStation = Station & { isNew?: boolean };
 
@@ -15,14 +27,26 @@ export default function SettingsPage({
   onNavigate,
   onLogout,
 }: {
-  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers') => void;
+  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers' | 'reports') => void;
   onLogout?: () => void;
 }) {
   const [stations, setStations] = useState<EditableStation[]>([]);
   const [bookingSettings, setBookingSettings] = useState(DEFAULT_SETTINGS);
   const [pricingConfig, setPricingConfig] = useState<GamePricingConfig>(DEFAULT_PRICING_CONFIG);
+  const [loyaltySettings, setLoyaltySettings] = useState<LoyaltySettings>(DEFAULT_LOYALTY_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Modal States
+  const [isAddGameTypeOpen, setIsAddGameTypeOpen] = useState(false);
+  const [newGameTypeName, setNewGameTypeName] = useState('');
+  
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: 'station' | 'gametype';
+    id: string;
+    title: string;
+    description: string;
+  } | null>(null);
 
   useEffect(() => {
     document.title = 'Settings · Goat Gaming';
@@ -31,10 +55,11 @@ export default function SettingsPage({
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [{ data: stationRows }, { data: bookingRow }, { data: pricingRow }] = await Promise.all([
+      const [{ data: stationRows }, { data: bookingRow }, { data: pricingRow }, { data: loyaltyRow }] = await Promise.all([
         supabase.from('stations').select('id,name,type').order('name'),
         supabase.from('booking_settings').select('opening_time,closing_time,slot_minutes').eq('id', 1).maybeSingle(),
         supabase.from('pricing_settings').select('config').eq('id', 1).maybeSingle(),
+        supabase.from('loyalty_settings').select('*').eq('id', 1).maybeSingle(),
       ]);
       setStations((stationRows ?? []) as EditableStation[]);
       if (bookingRow) {
@@ -45,6 +70,9 @@ export default function SettingsPage({
         });
       }
       setPricingConfig(normalizePricingConfig(pricingRow?.config));
+      if (loyaltyRow) {
+        setLoyaltySettings(loyaltyRow as LoyaltySettings);
+      }
       setLoading(false);
     };
     load();
@@ -62,13 +90,23 @@ export default function SettingsPage({
       setStations((prev) => prev.filter((s) => s.id !== id));
       return;
     }
-    if (!confirm('Delete this station? Existing bookings for this station must be removed first.')) return;
+    setDeleteConfirm({
+      type: 'station',
+      id,
+      title: 'Delete Station?',
+      description: 'Are you sure you want to delete this station? Existing bookings for this station must be removed first.'
+    });
+  };
+
+  const executeRemoveStation = async (id: string) => {
     const { error } = await supabase.from('stations').delete().eq('id', id);
     if (error) {
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
     setStations((prev) => prev.filter((s) => s.id !== id));
+    toast.success('Station removed');
+    setDeleteConfirm(null);
   };
 
   const saveAll = async () => {
@@ -78,7 +116,7 @@ export default function SettingsPage({
       .filter((s) => s.id && s.name);
     const { error: stationError } = await supabase.from('stations').upsert(cleanedStations, { onConflict: 'id' });
     if (stationError) {
-      alert(stationError.message);
+      toast.error(stationError.message);
       setSaving(false);
       return;
     }
@@ -87,7 +125,7 @@ export default function SettingsPage({
       .from('booking_settings')
       .upsert({ id: 1, ...bookingSettings }, { onConflict: 'id' });
     if (bookingSettingsError) {
-      alert(bookingSettingsError.message);
+      toast.error(bookingSettingsError.message);
       setSaving(false);
       return;
     }
@@ -96,16 +134,70 @@ export default function SettingsPage({
       .from('pricing_settings')
       .upsert({ id: 1, config: pricingConfig }, { onConflict: 'id' });
     if (pricingError) {
-      alert(pricingError.message);
+      toast.error(pricingError.message);
+      setSaving(false);
+      return;
+    }
+
+    const { error: loyaltyError } = await supabase
+      .from('loyalty_settings')
+      .upsert({ ...loyaltySettings, id: 1 }, { onConflict: 'id' });
+    if (loyaltyError) {
+      toast.error(loyaltyError.message);
       setSaving(false);
       return;
     }
     setStations(cleanedStations);
     setSaving(false);
-    alert('Settings saved.');
+    toast.success('Settings saved successfully');
   };
 
-  const stationTypeOptions: StationType[] = ['ps5', 'snooker', 'pool', 'vr'];
+  const stationTypeOptions = useMemo(() => {
+    const defaultTypes = ['ps5', 'snooker', 'pool', 'vr'];
+    const customTypes = Object.keys(pricingConfig).filter(k => !defaultTypes.includes(k) && k !== 'vr_cricket' && k !== 'vr_adventure');
+    return [...defaultTypes, ...customTypes];
+  }, [pricingConfig]);
+
+  const addCustomGameType = () => {
+    setNewGameTypeName('');
+    setIsAddGameTypeOpen(true);
+  };
+
+  const confirmAddGameType = () => {
+    const name = newGameTypeName.trim();
+    if (!name) return;
+    const key = name.toLowerCase().replace(/\s+/g, '_');
+    if (pricingConfig[key]) {
+      toast.error('This game type already exists.');
+      return;
+    }
+    setPricingConfig(prev => ({
+      ...prev,
+      [key]: { '15': 0, '30': 0, '60': 0, '90': 0, '120': 0, '150': 0, '180': 0 }
+    }));
+    setIsAddGameTypeOpen(false);
+    toast.success(`Game type "${name}" added`);
+  };
+
+  const removeCustomGameType = (key: string) => {
+    setDeleteConfirm({
+      type: 'gametype',
+      id: key,
+      title: 'Remove Game Type?',
+      description: `Are you sure you want to remove the game type "${key.replace(/_/g, ' ')}" and all its pricing?`
+    });
+  };
+
+  const executeRemoveGameType = (key: string) => {
+    setPricingConfig(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setDeleteConfirm(null);
+    toast.success('Game type removed');
+  };
+
   const vrCricket = pricingConfig.vr_cricket;
   const vrAdventure = pricingConfig.vr_adventure;
   const totalStations = useMemo(() => stations.length, [stations]);
@@ -119,6 +211,7 @@ export default function SettingsPage({
           else if (next === 'Bookings') onNavigate?.('bookings');
           else if (next === 'Inventory') onNavigate?.('inventory');
           else if (next === 'Customers') onNavigate?.('customers');
+          else if (next === 'Reports') onNavigate?.('reports');
         }}
         onLogout={onLogout}
       />
@@ -138,9 +231,14 @@ export default function SettingsPage({
           <section className="rounded-md border border-border/50 bg-background/40 p-4">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold">Stations ({totalStations})</h3>
-              <Button size="sm" variant="outline" onClick={addStation}>
-                Add station
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={addCustomGameType}>
+                  Manage Game Types
+                </Button>
+                <Button size="sm" variant="outline" onClick={addStation}>
+                  Add station
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               {stations.map((station) => (
@@ -394,8 +492,162 @@ export default function SettingsPage({
                 </div>
               </div>
             </div>
+
+            {/* Custom Game Types Pricing */}
+            {Object.keys(pricingConfig)
+              .filter(k => !['ps5', 'snooker', 'pool', 'vr_cricket', 'vr_adventure', 'vr'].includes(k))
+              .map(key => (
+                <div key={key} className="mt-6 border-t border-border/30 pt-6">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-semibold text-muted-foreground uppercase">{key.replace(/_/g, ' ')}</div>
+                      <div className="text-[11px] text-muted-foreground">Price by duration</div>
+                    </div>
+                    <Button size="sm" variant="ghost" className="text-destructive h-7 text-[10px]" onClick={() => removeCustomGameType(key)}>
+                      Remove Game Type
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
+                    {[15, 30, 60, 90, 120, 150, 180].map((duration) => (
+                      <label key={`${key}-${duration}`} className="space-y-1">
+                        <span className="text-[11px] font-medium text-muted-foreground">{duration} minutes</span>
+                        <Input
+                          type="number"
+                          value={pricingConfig[key]?.[String(duration)] ?? 0}
+                          onChange={(e) =>
+                            setPricingConfig((p) => ({
+                              ...p,
+                              [key]: { ...p[key], [String(duration)]: Number(e.target.value) || 0 },
+                            }))
+                          }
+                          placeholder="Price"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+          </section>
+
+          <section className="rounded-md border border-border/50 bg-background/40 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-secondary">GG Points System</h3>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Configure how customers earn and redeem GG points. Non-VR sessions earn points based on duration.
+            </p>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="space-y-4">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earning Rules</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-medium text-muted-foreground">Points to earn</span>
+                    <Input
+                      type="number"
+                      value={loyaltySettings.earn_rate_points}
+                      onChange={(e) => setLoyaltySettings(s => ({ ...s, earn_rate_points: Number(e.target.value) || 0 }))}
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-medium text-muted-foreground">Per minutes played</span>
+                    <Input
+                      type="number"
+                      value={loyaltySettings.earn_rate_minutes}
+                      onChange={(e) => setLoyaltySettings(s => ({ ...s, earn_rate_minutes: Number(e.target.value) || 0 }))}
+                    />
+                  </label>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Example: {loyaltySettings.earn_rate_points} points for every {loyaltySettings.earn_rate_minutes} minutes.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Redemption Rules</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-medium text-muted-foreground">Points to redeem</span>
+                    <Input
+                      type="number"
+                      value={loyaltySettings.redeem_rate_points}
+                      onChange={(e) => setLoyaltySettings(s => ({ ...s, redeem_rate_points: Number(e.target.value) || 0 }))}
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-medium text-muted-foreground">For free minutes</span>
+                    <Input
+                      type="number"
+                      value={loyaltySettings.redeem_rate_minutes}
+                      onChange={(e) => setLoyaltySettings(s => ({ ...s, redeem_rate_minutes: Number(e.target.value) || 0 }))}
+                    />
+                  </label>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Example: {loyaltySettings.redeem_rate_points} points gives {loyaltySettings.redeem_rate_minutes} minutes free.
+                </p>
+              </div>
+            </div>
           </section>
         </div>
+
+        {/* Add Game Type Dialog */}
+        <Dialog open={isAddGameTypeOpen} onOpenChange={setIsAddGameTypeOpen}>
+          <DialogContent className="sm:max-w-[425px] bg-background/95 backdrop-blur-xl border-border/50">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Plus size={18} className="text-primary" />
+                Add New Game Type
+              </DialogTitle>
+              <DialogDescription>
+                Enter the name for the new game category. This will create a new duration-based pricing grid.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Game Type Name</label>
+                <Input 
+                  placeholder="e.g. PC Gaming, Foosball, Table Tennis" 
+                  value={newGameTypeName}
+                  onChange={e => setNewGameTypeName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && confirmAddGameType()}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setIsAddGameTypeOpen(false)}>Cancel</Button>
+              <Button onClick={confirmAddGameType} disabled={!newGameTypeName.trim()}>Add Game Type</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+          <DialogContent className="sm:max-w-[400px] bg-background/95 backdrop-blur-xl border-border/50">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle size={20} />
+                {deleteConfirm?.title}
+              </DialogTitle>
+              <DialogDescription className="py-4 text-sm text-muted-foreground">
+                {deleteConfirm?.description}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                  if (deleteConfirm?.type === 'station') executeRemoveStation(deleteConfirm.id);
+                  else if (deleteConfirm?.type === 'gametype') executeRemoveGameType(deleteConfirm.id);
+                }}
+              >
+                Confirm Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <div className="fixed inset-x-0 bottom-[70px] z-40 border-t border-border/50 bg-background/90 p-3 backdrop-blur-xl md:hidden">
           <Button className="w-full" onClick={saveAll} disabled={saving || loading}>
             {saving ? 'Saving...' : 'Save all changes'}

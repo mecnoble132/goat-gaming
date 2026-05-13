@@ -95,7 +95,7 @@ export function CustomerStrip({
               </div>
               <div className="ml-2 flex items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-2.5 py-1 shadow-[0_0_10px_rgba(var(--secondary),0.08)]">
                 <Star size={14} className="fill-secondary text-secondary" />
-                <span className="font-mono text-xs font-bold text-secondary">{selectedCustomer.loyalty_points} pts</span>
+                <span className="font-mono text-xs font-bold text-secondary">{selectedCustomer.loyalty_points} GG pts</span>
               </div>
             </div>
             <Button
@@ -122,7 +122,7 @@ export function CustomerStrip({
                 )} size={18} />
                 <Input 
                   placeholder="Search by name or phone number" 
-                  className="h-11 pl-10 pr-3 text-sm rounded-xl border-border/50 bg-muted/20 focus:ring-primary focus:bg-background transition-all shadow-sm"
+                  className="h-11 pl-10 pr-3 text-sm rounded-xl border-border/50 bg-muted/20 transition-all duration-300 ease-out focus:bg-background focus:border-primary/40 focus:ring-[4px] focus:ring-primary/10 focus:shadow-[0_0_25px_rgba(var(--primary),0.12)] outline-none"
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
@@ -167,7 +167,7 @@ export function CustomerStrip({
                                 <p className="font-mono text-xs text-muted-foreground">{m.phone}</p>
                               </div>
                             </div>
-                            <Badge variant="outline" className="font-mono">{m.loyalty_points} pts</Badge>
+                            <Badge variant="outline" className="font-mono">{m.loyalty_points} GG pts</Badge>
                           </button>
                         ))
                       ) : showCreateForm ? (

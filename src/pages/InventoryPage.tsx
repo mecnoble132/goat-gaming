@@ -33,7 +33,7 @@ export default function InventoryPage({
   onNavigate,
   onLogout,
 }: {
-  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers') => void;
+  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers' | 'reports') => void;
   onLogout?: () => void;
 }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -209,6 +209,7 @@ export default function InventoryPage({
            else if (next === 'Bookings') onNavigate?.('bookings');
            else if (next === 'Settings') onNavigate?.('settings');
            else if (next === 'Customers') onNavigate?.('customers');
+           else if (next === 'Reports') onNavigate?.('reports');
         }}
         onLogout={onLogout}
       />
@@ -224,7 +225,7 @@ export default function InventoryPage({
                   placeholder="Search..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="h-9 w-48 pl-9 rounded-lg bg-muted/30 border-border/50"
+                  className="h-9 w-48 pl-9 rounded-lg bg-muted/30 border-border/50 transition-all duration-300 focus:w-64 focus:bg-background focus:border-primary/40 focus:ring-[4px] focus:ring-primary/10 focus:shadow-[0_0_20px_rgba(var(--primary),0.1)] outline-none"
                 />
               </div>
               
@@ -326,7 +327,7 @@ export default function InventoryPage({
               placeholder="Search products..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-11 pl-10 rounded-xl bg-background/50 border-border/50 backdrop-blur-sm"
+              className="h-11 pl-10 rounded-xl bg-background/50 border-border/50 backdrop-blur-sm transition-all duration-300 focus:bg-background focus:border-primary/40 focus:ring-[4px] focus:ring-primary/10 focus:shadow-[0_0_25px_rgba(var(--primary),0.12)] outline-none"
             />
           </div>
 

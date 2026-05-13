@@ -58,12 +58,18 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
   const [poolDuration, setPoolDuration] = useState<string>('');
   const [selectedVrCricket, setSelectedVrCricket] = useState<string>('');
   const [snacksSearch, setSnacksSearch] = useState('');
+  const [customDurations, setCustomDurations] = useState<Record<string, string>>({});
   const effectivePricing = normalizePricingConfig(pricingConfig);
   const ps5Pricing = effectivePricing.ps5;
   const snookerPricing = effectivePricing.snooker;
   const poolPricing = effectivePricing.pool;
   const vrCricketOptions = effectivePricing.vr_cricket;
   const vrAdventureOptions = effectivePricing.vr_adventure;
+
+  const customTypes = useMemo(() => {
+    const defaults = ['ps5', 'snooker', 'pool', 'vr_cricket', 'vr_adventure', 'vr'];
+    return Object.keys(effectivePricing).filter(k => !defaults.includes(k));
+  }, [effectivePricing]);
 
   const getPoints = (minutes: number) => Math.floor(minutes / 30) * 5;
 
@@ -128,6 +134,11 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
         <TabsTrigger value="snacks" className="shrink-0 min-w-[108px] sm:min-w-[120px] h-10 sm:h-11 rounded-md px-4 sm:px-5 font-semibold tracking-wide text-xs sm:text-sm whitespace-nowrap transition-all duration-200 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_12px_rgba(var(--primary),0.25)]">
           <Coffee size={18} className="mr-2" /> Snacks
         </TabsTrigger>
+        {customTypes.map(type => (
+          <TabsTrigger key={type} value={type} className="shrink-0 min-w-[108px] sm:min-w-[120px] h-10 sm:h-11 rounded-md px-4 sm:px-5 font-semibold tracking-wide text-xs sm:text-sm whitespace-nowrap transition-all duration-200 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_12px_rgba(var(--primary),0.25)]">
+            <Gamepad2 size={18} className="mr-2" /> {type.replace(/_/g, ' ').toUpperCase()}
+          </TabsTrigger>
+        ))}
       </TabsList>
 
       <div className="mt-4">
@@ -190,7 +201,7 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
                   </div>
                   {ps5Duration && (
                     <p className="text-xs font-semibold text-primary tracking-wide flex items-center gap-1">
-                      <CheckCircle2 size={14} /> +{getPoints(Number(ps5Duration))} pts
+                      <CheckCircle2 size={14} /> +{getPoints(Number(ps5Duration))} GG pts
                     </p>
                   )}
                 </div>
@@ -248,7 +259,7 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
                   </div>
                   {snookerDuration && (
                     <p className="text-xs font-semibold text-primary tracking-wide flex items-center gap-1">
-                      <CheckCircle2 size={12} /> +{getPoints(Number(snookerDuration))} pts
+                      <CheckCircle2 size={12} /> +{getPoints(Number(snookerDuration))} GG pts
                     </p>
                   )}
                 </div>
@@ -310,7 +321,7 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
                   </div>
                   {poolDuration && (
                     <p className="text-xs font-semibold text-primary tracking-wide flex items-center gap-1">
-                      <CheckCircle2 size={12} /> +{getPoints(Number(poolDuration))} pts
+                      <CheckCircle2 size={12} /> +{getPoints(Number(poolDuration))} GG pts
                     </p>
                   )}
                 </div>
@@ -372,7 +383,7 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
                 >
                   Add VR Cricket
                 </Button>
-                <p className="text-xs text-muted-foreground mt-3">No loyalty points for VR sessions.</p>
+                <p className="text-xs text-muted-foreground mt-3">No GG points for VR sessions.</p>
               </CardContent>
             </Card>
             <Card className="border-none bg-card/50">
@@ -389,7 +400,7 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-3">No loyalty points for VR sessions.</p>
+                <p className="text-xs text-muted-foreground mt-3">No GG points for VR sessions.</p>
               </CardContent>
             </Card>
           </div>
@@ -401,7 +412,7 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
             <Input
               value={snacksSearch}
               onChange={(e) => setSnacksSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-10 transition-all duration-300 focus:bg-background focus:border-primary/40 focus:ring-[4px] focus:ring-primary/10 focus:shadow-[0_0_20px_rgba(var(--primary),0.1)] outline-none"
               placeholder="Search snacks and drinks"
             />
           </div>
@@ -437,6 +448,78 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
             </button>
           </div>
         </TabsContent>
+
+        {customTypes.map(type => (
+          <TabsContent key={type} value={type} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <Card className="border border-border bg-card shadow-sm rounded-lg overflow-visible">
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+                    <Gamepad2 className="text-primary" size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold tracking-tight text-foreground uppercase">{type.replace(/_/g, ' ')}</h3>
+                    <p className="text-xs font-medium text-muted-foreground tracking-wide">Select duration</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold tracking-wide text-muted-foreground flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Duration
+                    </label>
+                    <Select value={customDurations[type] ?? ''} onValueChange={(val) => setCustomDurations(prev => ({ ...prev, [type]: val }))}>
+                      <SelectTrigger className="h-10 text-sm font-medium rounded-md bg-background border-border focus-visible:ring-ring/50">
+                        <SelectValue placeholder="How many minutes?" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border bg-popover text-popover-foreground">
+                        {Object.keys(effectivePricing[type] || {}).map((min) => (
+                          <SelectItem key={min} value={min}>
+                            {min} Minutes (₹{effectivePricing[type][min] ?? 0})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="bg-muted/30 border border-border rounded-lg p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xl font-bold tracking-tight text-primary">
+                        ₹{customDurations[type] ? (effectivePricing[type][customDurations[type]] ?? 0) : 0}
+                      </span>
+                      <span className="text-xs font-semibold text-muted-foreground tracking-wide">Estimated Total</span>
+                    </div>
+                    {customDurations[type] && (
+                      <p className="text-xs font-semibold text-primary tracking-wide flex items-center gap-1">
+                        <CheckCircle2 size={12} /> +{getPoints(Number(customDurations[type]))} GG pts
+                      </p>
+                    )}
+                  </div>
+                  <Button 
+                    size="lg" 
+                    disabled={!customDurations[type]} 
+                    className="w-full sm:w-auto h-10 px-4 text-sm font-semibold tracking-wide rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-all active:scale-[0.99]"
+                    onClick={() => {
+                      const duration = Number(customDurations[type]);
+                      const price = effectivePricing[type][customDurations[type]] ?? 0;
+                      onAddItem({
+                        item_type: 'session',
+                        item_name: `${type.replace(/_/g, ' ').toUpperCase()} Session`,
+                        quantity: 1,
+                        unit_price: price,
+                        total_price: price,
+                        metadata: { duration_minutes: duration, game_type: type }
+                      });
+                      setCustomDurations(prev => ({ ...prev, [type]: '' }));
+                    }}
+                  >
+                    Add {type.replace(/_/g, ' ')} <Plus size={16} className="ml-2" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
       </div>
     </Tabs>
   );

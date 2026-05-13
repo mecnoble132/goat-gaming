@@ -4,6 +4,7 @@ export type GamePricingConfig = {
   pool: Record<string, number>;
   vr_cricket: Array<{ label: string; price: number; minutes: number }>;
   vr_adventure: Array<{ label: string; price: number; minutes: number }>;
+  [key: string]: any;
 };
 
 export const DEFAULT_PRICING_CONFIG: GamePricingConfig = {
@@ -54,6 +55,8 @@ export const DEFAULT_PRICING_CONFIG: GamePricingConfig = {
 export function normalizePricingConfig(raw: any): GamePricingConfig {
   const safe = raw ?? {};
   return {
+    ...DEFAULT_PRICING_CONFIG,
+    ...safe,
     ps5: { ...DEFAULT_PRICING_CONFIG.ps5, ...(safe.ps5 ?? {}) },
     snooker: { ...DEFAULT_PRICING_CONFIG.snooker, ...(safe.snooker ?? {}) },
     pool: { ...DEFAULT_PRICING_CONFIG.pool, ...(safe.pool ?? {}) },

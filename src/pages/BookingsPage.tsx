@@ -27,8 +27,11 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogFooter 
+  DialogFooter,
+  DialogDescription
 } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { AlertTriangle } from 'lucide-react';
 
 type Customer = {
   id: string;
@@ -36,6 +39,7 @@ type Customer = {
   phone: string;
   whatsapp_number: string;
   loyalty_points: number;
+  visits: number;
   created_at: string;
 };
 
@@ -144,7 +148,7 @@ function CustomerPicker({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
-        className="h-10"
+        className="h-10 transition-all duration-300 focus:bg-background focus:border-primary/40 focus:ring-[4px] focus:ring-primary/10 focus:shadow-[0_0_20px_rgba(var(--primary),0.1)] outline-none"
       />
 
       {open && (
@@ -199,7 +203,7 @@ function CustomerPicker({
                     <div className="text-xs text-muted-foreground font-mono">{c.phone}</div>
                   </div>
                   <Badge variant="outline" className="font-mono">
-                    {c.loyalty_points} pts
+                    {c.loyalty_points} GG pts
                   </Badge>
                 </button>
               ))
@@ -225,7 +229,7 @@ export default function BookingsPage({
   onNavigate,
   onLogout,
 }: {
-  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers') => void;
+  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers' | 'reports') => void;
   onLogout?: () => void;
 }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -264,6 +268,12 @@ export default function BookingsPage({
     controllers: 2,
   }));
 
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  } | null>(null);
+
   const now = new Date();
   const todayYmd = ymd(now);
   const isPastDay = isPastDate(selectedDate, now);
@@ -280,7 +290,7 @@ export default function BookingsPage({
 
       const { data: stationRows, error: stationReadError } = await supabase.from('stations').select('id,name,type').order('name');
       if (stationReadError) {
-        alert(stationReadError.message);
+        toast.error(stationReadError.message);
         setLoadingData(false);
         return;
       }
@@ -405,7 +415,7 @@ export default function BookingsPage({
     });
     if (conflicting) {
       const conflictEnd = endDateTime(conflicting);
-      alert(
+      toast.error(
         `${station.name} is already booked from ${conflicting.start_time} to ${format(conflictEnd, 'hh:mm a')}. Choose a different station or time.`
       );
       return;
@@ -425,7 +435,7 @@ export default function BookingsPage({
       };
       const { error } = await supabase.from('bookings').upsert(next, { onConflict: 'id' });
       if (error) {
-        alert(error.message);
+        toast.error(error.message);
         return;
       }
       setItems((prev) => {
@@ -460,7 +470,7 @@ export default function BookingsPage({
 
     const { error } = await supabase.from('bookings').upsert(next, { onConflict: 'id' });
     if (error) {
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
     setItems((prev) => {
@@ -474,16 +484,24 @@ export default function BookingsPage({
 
   const cancelBooking = async () => {
     if (!activeItem || activeItem.kind !== 'booking') return;
-    if (!confirm('Cancel this booking? This cannot be undone.')) return;
-    const cancelledAt = new Date().toISOString();
-    const { error } = await supabase.from('bookings').update({ cancelled_at: cancelledAt }).eq('id', activeItem.id);
-    if (error) {
-      alert(error.message);
-      return;
-    }
-    setItems((prev) =>
-      prev.map((x) => (x.id === activeItem.id ? ({ ...x, cancelled_at: cancelledAt } as BookingOrBlock) : x))
-    );
+    
+    setDeleteConfirm({
+      title: 'Cancel Booking?',
+      description: 'Are you sure you want to cancel this booking? This action cannot be undone.',
+      onConfirm: async () => {
+        const cancelledAt = new Date().toISOString();
+        const { error } = await supabase.from('bookings').update({ cancelled_at: cancelledAt }).eq('id', activeItem.id);
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        setItems((prev) =>
+          prev.map((x) => (x.id === activeItem.id ? ({ ...x, cancelled_at: cancelledAt } as BookingOrBlock) : x))
+        );
+        setDeleteConfirm(null);
+        toast.success('Booking cancelled');
+      }
+    });
   };
 
   const convertToBill = () => {
@@ -518,6 +536,7 @@ export default function BookingsPage({
           else if (next === 'Settings') onNavigate?.('settings');
           else if (next === 'Inventory') onNavigate?.('inventory');
           else if (next === 'Customers') onNavigate?.('customers');
+          else if (next === 'Reports') onNavigate?.('reports');
         }}
         onLogout={onLogout}
       />
@@ -1051,6 +1070,32 @@ export default function BookingsPage({
             <Plus size={24} />
           </Button>
         </div>
+
+        {/* Global Confirmation Dialog */}
+        <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+          <DialogContent className="sm:max-w-[400px] bg-background/95 backdrop-blur-xl border-border/50">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle size={20} />
+                {deleteConfirm?.title}
+              </DialogTitle>
+              <DialogDescription className="py-4 text-sm text-muted-foreground">
+                {deleteConfirm?.description}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={deleteConfirm?.onConfirm}
+              >
+                Confirm
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

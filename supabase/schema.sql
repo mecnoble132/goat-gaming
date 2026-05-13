@@ -10,18 +10,45 @@
   );
 
   create table if not exists public.customers (
-    id uuid primary key default gen_random_uuid(),
-    name text not null,
-    phone text not null unique,
-    whatsapp_number text not null,
-    loyalty_points integer not null default 0,
+    id text primary key,
+    name text,
+    phone text unique not null,
+    whatsapp_number text,
+    loyalty_points integer default 0,
+    visits integer default 0,
     created_at timestamptz not null default now()
   );
+
+  -- Migration for existing databases
+  do $$ 
+  begin 
+    -- Add visits column if missing
+    if not exists (select 1 from information_schema.columns where table_name='customers' and column_name='visits') then
+      alter table public.customers add column visits integer default 0;
+    end if;
+    
+    -- Fix ID type if it's still uuid
+    if (select data_type from information_schema.columns where table_name='customers' and column_name='id') = 'uuid' then
+      -- Drop the foreign key first so we can change the types
+      alter table public.bookings drop constraint if exists bookings_customer_id_fkey;
+      
+      -- Change types
+      alter table public.customers alter column id type text;
+      alter table public.bookings alter column customer_id type text;
+      
+      -- Re-add the foreign key with CASCADE so we can update IDs later
+      alter table public.bookings 
+        add constraint bookings_customer_id_fkey 
+        foreign key (customer_id) references public.customers(id) 
+        on update cascade
+        on delete set null;
+    end if;
+  end $$;
 
   create table if not exists public.stations (
     id text primary key,
     name text not null,
-    type text not null check (type in ('ps5', 'snooker', 'pool', 'vr'))
+    type text not null
   );
 
   create table if not exists public.booking_settings (
@@ -44,12 +71,12 @@
     date date not null,
     start_time text not null,
     duration_minutes integer not null check (duration_minutes > 0),
-    customer_id uuid references public.customers(id) on delete set null,
+    customer_id text references public.customers(id) on update cascade on delete set null,
     customer_name text,
     customer_phone text,
-    game_type text check (game_type in ('ps5', 'snooker', 'pool', 'vr')),
+    game_type text,
     controllers integer,
-    vr_mode text check (vr_mode in ('cricket', 'adventure')),
+    vr_mode text,
     vr_label text,
     notes text,
     reason text,
@@ -74,7 +101,31 @@
     created_at timestamptz not null default now()
   );
 
+  create table if not exists public.bills (
+    id text primary key,
+    customer_id text references public.customers(id) on delete set null,
+    customer_name text not null,
+    customer_phone text,
+    payment_method text not null check (payment_method in ('cash', 'upi', 'card')),
+    subtotal integer not null,
+    discount integer not null default 0,
+    grand_total integer not null,
+    points_earned integer not null default 0,
+    points_redeemed integer not null default 0,
+    items jsonb not null,
+    created_at timestamptz not null default now()
+  );
+
   alter table public.products enable row level security;
+  alter table public.bills enable row level security;
+
+  drop policy if exists "bills all authenticated" on public.bills;
+  create policy "bills all authenticated"
+  on public.bills
+  for all
+  to authenticated
+  using (true)
+  with check (true);
 
   drop policy if exists "products all authenticated" on public.products;
   create policy "products all authenticated"
@@ -194,6 +245,29 @@
   )
   on conflict (id) do nothing;
 
+  create table if not exists public.loyalty_settings (
+    id integer primary key check (id = 1),
+    earn_rate_points integer not null default 5,
+    earn_rate_minutes integer not null default 30,
+    redeem_rate_points integer not null default 70,
+    redeem_rate_minutes integer not null default 60,
+    created_at timestamptz not null default now()
+  );
+
+  alter table public.loyalty_settings enable row level security;
+
+  drop policy if exists "loyalty_settings all authenticated" on public.loyalty_settings;
+  create policy "loyalty_settings all authenticated"
+  on public.loyalty_settings
+  for all
+  to authenticated
+  using (true)
+  with check (true);
+
+  insert into public.loyalty_settings (id, earn_rate_points, earn_rate_minutes, redeem_rate_points, redeem_rate_minutes)
+  values (1, 5, 30, 70, 60)
+  on conflict (id) do nothing;
+
 insert into public.products (id, name, category, mrp, stock_quantity, low_stock_threshold) values
 ('PRD-001', 'Red Bull', 'Drinks', 60, 15, 5),
 ('PRD-002', 'Coca Cola', 'Drinks', 40, 24, 6),
@@ -206,19 +280,20 @@ insert into public.products (id, name, category, mrp, stock_quantity, low_stock_
 on conflict (id) do nothing;
 
 -- Placeholder Customers
-insert into public.customers (name, phone, whatsapp_number, loyalty_points, created_at) values
-('Rahul Sharma', '9876543210', '9876543210', 450, now() - interval '30 days'),
-('Sneha Kapoor', '9888877777', '9888877777', 120, now() - interval '25 days'),
-('Vikram Singh', '9811112222', '9811112222', 890, now() - interval '20 days'),
-('Ananya Iyer', '9822223333', '9822223333', 0, now() - interval '18 days'),
-('Arjun Mehra', '9833334444', '9833334444', 2100, now() - interval '15 days'),
-('Pooja Verma', '9844445555', '9844445555', 75, now() - interval '12 days'),
-('Rohan Das', '9855556666', '9855556666', 320, now() - interval '10 days'),
-('Kritika Malhotra', '9866667777', '9866667777', 150, now() - interval '8 days'),
-('Siddharth Jain', '9877778888', '9877778888', 500, now() - interval '5 days'),
-('Ishita Gupta', '9888889999', '9888889999', 45, now() - interval '3 days'),
-('Manish Pandey', '9899990000', '9899990000', 1200, now() - interval '2 days'),
-('Tanvi Reddy', '9800001111', '9800001111', 0, now() - interval '1 day'),
-('Zeeshan Khan', '9811223344', '9811223344', 350, now() - interval '12 hours'),
-('Simran Kaur', '9822334455', '9822334455', 85, now() - interval '6 hours'),
-('Abhishek Ray', '9833445566', '9833445566', 15, now());
+insert into public.customers (id, name, phone, whatsapp_number, loyalty_points, visits, created_at) values
+('CUS-1001', 'Rahul Sharma', '9876543210', '9876543210', 450, 5, now() - interval '30 days'),
+('CUS-1002', 'Sneha Kapoor', '9888877777', '9888877777', 120, 2, now() - interval '25 days'),
+('CUS-1003', 'Vikram Singh', '9811112222', '9811112222', 890, 12, now() - interval '20 days'),
+('CUS-1004', 'Ananya Iyer', '9822223333', '9822223333', 0, 1, now() - interval '18 days'),
+('CUS-1005', 'Arjun Mehra', '9833334444', '9833334444', 2100, 45, now() - interval '15 days'),
+('CUS-1006', 'Pooja Verma', '9844445555', '9844445555', 75, 3, now() - interval '12 days'),
+('CUS-1007', 'Rohan Das', '9855556666', '9855556666', 320, 8, now() - interval '10 days'),
+('CUS-1008', 'Kritika Malhotra', '9866667777', '9866667777', 150, 4, now() - interval '8 days'),
+('CUS-1009', 'Siddharth Jain', '9877778888', '9877778888', 500, 10, now() - interval '5 days'),
+('CUS-1010', 'Ishita Gupta', '9888889999', '9888889999', 45, 2, now() - interval '3 days'),
+('CUS-1011', 'Manish Pandey', '9899990000', '9899990000', 1200, 25, now() - interval '2 days'),
+('CUS-1012', 'Tanvi Reddy', '9800001111', '9800001111', 0, 1, now() - interval '1 day'),
+('CUS-1013', 'Zeeshan Khan', '9811223344', '9811223344', 350, 7, now() - interval '12 hours'),
+('CUS-1014', 'Simran Kaur', '9822334455', '9822334455', 85, 3, now() - interval '6 hours'),
+('CUS-1015', 'Abhishek Ray', '9833445566', '9833445566', 15, 1, now())
+on conflict (phone) do update set id = excluded.id;

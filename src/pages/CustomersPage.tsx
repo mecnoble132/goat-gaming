@@ -33,7 +33,7 @@ export default function CustomersPage({
   onNavigate,
   onLogout,
 }: {
-  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers') => void;
+  onNavigate?: (next: 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers' | 'reports') => void;
   onLogout?: () => void;
 }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -219,6 +219,7 @@ export default function CustomersPage({
            else if (next === 'Settings') onNavigate?.('settings');
            else if (next === 'Inventory') onNavigate?.('inventory');
            else if (next === 'Customers') onNavigate?.('customers');
+           else if (next === 'Reports') onNavigate?.('reports');
         }}
         onLogout={onLogout}
       />
@@ -234,7 +235,7 @@ export default function CustomersPage({
                   placeholder="Search name or phone..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="h-9 w-48 pl-9 rounded-lg bg-muted/30 border-border/50"
+                  className="h-9 w-48 pl-9 rounded-lg bg-muted/30 border-border/50 transition-all duration-300 focus:w-64 focus:bg-background focus:border-primary/40 focus:ring-[4px] focus:ring-primary/10 focus:shadow-[0_0_20px_rgba(var(--primary),0.1)] outline-none"
                 />
               </div>
               
@@ -278,7 +279,7 @@ export default function CustomersPage({
                       />
                     </div>
                     <div className="grid gap-2">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Loyalty Points</label>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">GG Points</label>
                       <Input 
                         type="number" 
                         value={formData.loyalty_points}
@@ -306,20 +307,20 @@ export default function CustomersPage({
               placeholder="Search customers..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-11 pl-10 rounded-xl bg-background/50 border-border/50 backdrop-blur-sm"
+              className="h-11 pl-10 rounded-xl bg-background/50 border-border/50 backdrop-blur-sm transition-all duration-300 focus:bg-background focus:border-primary/40 focus:ring-[4px] focus:ring-primary/10 focus:shadow-[0_0_25px_rgba(var(--primary),0.12)] outline-none"
             />
           </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-2 gap-3 md:gap-4 max-w-2xl">
-            <div className="rounded-xl border border-border/50 bg-background/40 p-3 md:p-4 shadow-sm">
-              <div className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Customers</div>
-              <div className="text-xl md:text-2xl font-black text-foreground italic">{stats.totalCustomers}</div>
-            </div>
-            <div className="rounded-xl border border-border/50 bg-background/40 p-3 md:p-4 shadow-sm">
-              <div className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Points</div>
-              <div className="text-xl md:text-2xl font-black text-primary italic">{stats.totalLoyaltyPoints.toLocaleString()}</div>
-            </div>
+      <div className="rounded-xl border border-border/50 bg-background/40 p-3 md:p-4 shadow-sm">
+        <div className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total Visits</div>
+        <div className="text-xl md:text-2xl font-black text-foreground italic">{customers.reduce((acc, c) => acc + (c.visits || 0), 0)}</div>
+      </div>
+      <div className="rounded-xl border border-border/50 bg-background/40 p-3 md:p-4 shadow-sm">
+        <div className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Total GG Points</div>
+        <div className="text-xl md:text-2xl font-black text-primary italic">{stats.totalLoyaltyPoints.toLocaleString()}</div>
+      </div>
           </div>
 
           <div className="rounded-xl border border-border/50 bg-background/40 shadow-xl overflow-hidden backdrop-blur-md max-w-full">
@@ -342,8 +343,17 @@ export default function CustomersPage({
                       onClick={() => toggleSort('loyalty_points')}
                     >
                       <div className="flex items-center justify-center gap-1 md:gap-2">
-                        Loyalty
+                        GG Points
                         <ArrowUpDown size={10} className={sortConfig.key === 'loyalty_points' ? 'text-primary' : 'text-muted-foreground/50'} />
+                      </div>
+                    </th>
+                    <th 
+                      className="px-3 md:px-6 py-3 md:py-4 text-[10px] md:text-xs font-bold uppercase tracking-wider text-muted-foreground text-center cursor-pointer hover:bg-muted/30 transition-colors"
+                      onClick={() => toggleSort('visits')}
+                    >
+                      <div className="flex items-center justify-center gap-1 md:gap-2">
+                        Visits
+                        <ArrowUpDown size={10} className={sortConfig.key === 'visits' ? 'text-primary' : 'text-muted-foreground/50'} />
                       </div>
                     </th>
                     <th 
@@ -404,8 +414,13 @@ export default function CustomersPage({
                           <div className="flex flex-col items-center">
                             <Badge variant="outline" className="gap-1 px-2 py-0.5 border-primary/30 bg-primary/5 text-primary">
                               <Award size={10} />
-                              {customer.loyalty_points || 0}
+                              {customer.loyalty_points || 0} GG pts
                             </Badge>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col items-center">
+                            <span className="font-bold text-sm">{customer.visits || 0}</span>
                           </div>
                         </td>
                         <td className="px-3 md:px-6 py-3 md:py-4 text-[11px] md:text-sm text-muted-foreground">

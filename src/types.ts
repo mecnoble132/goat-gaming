@@ -13,10 +13,11 @@ export interface Customer {
   phone: string;
   whatsapp_number?: string;
   loyalty_points: number;
+  visits: number;
   created_at: string;
 }
 
-export type GameType = 'ps5' | 'snooker' | 'pool' | 'vr_cricket' | 'vr_adventure';
+export type GameType = string;
 
 export interface BasePricing {
   id: string;

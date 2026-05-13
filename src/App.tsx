@@ -14,11 +14,13 @@ import { supabase } from '@/lib/supabase';
 import SettingsPage from './pages/SettingsPage';
 import InventoryPage from './pages/InventoryPage';
 import CustomersPage from './pages/CustomersPage';
+import ReportsPage from './pages/ReportsPage';
 
 const queryClient = new QueryClient();
 
+type Page = 'billing' | 'bookings' | 'settings' | 'inventory' | 'customers' | 'reports';
+
 export default function App() {
-  // Simple dark mode force for now as per cafe requirement
   useEffect(() => {
     document.documentElement.classList.add('dark');
   }, []);
@@ -27,7 +29,7 @@ export default function App() {
     await supabase.auth.signOut();
   };
 
-  const [page, setPage] = useState<'billing' | 'bookings' | 'settings' | 'inventory' | 'customers'>('billing');
+  const [page, setPage] = useState<Page>('billing');
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -46,6 +48,8 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  const nav = (next: Page) => setPage(next);
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-background text-foreground font-sans antialiased">
@@ -54,15 +58,17 @@ export default function App() {
         ) : !session ? (
           <AuthPage />
         ) : page === 'billing' ? (
-          <BillingPage onNavigate={(next) => setPage(next)} onLogout={handleLogout} />
+          <BillingPage onNavigate={nav} onLogout={handleLogout} />
         ) : page === 'bookings' ? (
-          <BookingsPage onNavigate={(next) => setPage(next)} onLogout={handleLogout} />
+          <BookingsPage onNavigate={nav} onLogout={handleLogout} />
         ) : page === 'inventory' ? (
-          <InventoryPage onNavigate={(next) => setPage(next)} onLogout={handleLogout} />
+          <InventoryPage onNavigate={nav} onLogout={handleLogout} />
         ) : page === 'customers' ? (
-          <CustomersPage onNavigate={(next) => setPage(next)} onLogout={handleLogout} />
+          <CustomersPage onNavigate={nav} onLogout={handleLogout} />
+        ) : page === 'reports' ? (
+          <ReportsPage onNavigate={nav} onLogout={handleLogout} />
         ) : (
-          <SettingsPage onNavigate={(next) => setPage(next)} onLogout={handleLogout} />
+          <SettingsPage onNavigate={nav} onLogout={handleLogout} />
         )}
         <Toaster position="bottom-right" />
       </div>
