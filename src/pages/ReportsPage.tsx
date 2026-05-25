@@ -159,8 +159,10 @@ export default function ReportsPage({
     XLSX.utils.book_append_sheet(wb, ws, 'Bills');
 
     // Auto column widths
-    const colWidths = Object.keys(rows[0] || {}).map(k => ({ wch: Math.max(k.length, 15) }));
-    ws['!cols'] = colWidths;
+    if (rows.length > 0) {
+      const colWidths = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length, 15) }));
+      ws['!cols'] = colWidths;
+    }
 
     const fileName = `GoatGaming_Bills_${format(fromDate, 'ddMMMyyyy')}_to_${format(toDate, 'ddMMMyyyy')}.xlsx`;
     XLSX.writeFile(wb, fileName);
@@ -173,6 +175,7 @@ export default function ReportsPage({
     else if (label === 'Settings') onNavigate?.('settings');
     else if (label === 'Inventory') onNavigate?.('inventory');
     else if (label === 'Customers') onNavigate?.('customers');
+    else if (label === 'Reports') onNavigate?.('reports');
   };
 
   return (

@@ -30,6 +30,7 @@ interface GameTabsProps {
   products: Product[];
   productQuantityById: Record<string, number>;
   pricingConfig?: GamePricingConfig;
+  loyaltySettings?: { earn_rate_points: number; earn_rate_minutes: number };
 }
 
 const ps5Durations = [
@@ -51,7 +52,7 @@ const snookerPoolDurations = [
   { label: '3 Hours', minutes: 180 },
 ];
 
-export function GameTabs({ onAddItem, products, productQuantityById, pricingConfig = DEFAULT_PRICING_CONFIG }: GameTabsProps) {
+export function GameTabs({ onAddItem, products, productQuantityById, pricingConfig = DEFAULT_PRICING_CONFIG, loyaltySettings }: GameTabsProps) {
   const [ps5Controllers, setPs5Controllers] = useState<string>('');
   const [ps5Duration, setPs5Duration] = useState<string>('');
   const [snookerDuration, setSnookerDuration] = useState<string>('');
@@ -71,7 +72,11 @@ export function GameTabs({ onAddItem, products, productQuantityById, pricingConf
     return Object.keys(effectivePricing).filter(k => !defaults.includes(k));
   }, [effectivePricing]);
 
-  const getPoints = (minutes: number) => Math.floor(minutes / 30) * 5;
+  const getPoints = (minutes: number) => {
+    const earnMins = loyaltySettings?.earn_rate_minutes || 30;
+    const earnPts = loyaltySettings?.earn_rate_points || 5;
+    return earnMins > 0 ? Math.floor(minutes / earnMins) * earnPts : 0;
+  };
 
   const ps5Price = ps5Controllers && ps5Duration ? ps5Pricing[`${ps5Controllers}-${ps5Duration}`] ?? 0 : 0;
 

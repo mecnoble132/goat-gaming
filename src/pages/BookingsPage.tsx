@@ -237,6 +237,7 @@ export default function BookingsPage({
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [items, setItems] = useState<BookingOrBlock[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(() => ymd(new Date()));
   const [view, setView] = useState<'grid' | 'list'>('grid');
@@ -274,7 +275,7 @@ export default function BookingsPage({
     onConfirm: () => void;
   } | null>(null);
 
-  const now = new Date();
+  const [now, setNow] = useState(() => new Date());
   const todayYmd = ymd(now);
   const isPastDay = isPastDate(selectedDate, now);
   const isPastStart = (dateYmd: string, timeHHmm: string) => combineDateTime(dateYmd, timeHHmm).getTime() < Date.now();
@@ -282,6 +283,11 @@ export default function BookingsPage({
 
   useEffect(() => {
     document.title = 'Bookings · Goat Gaming';
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -323,7 +329,11 @@ export default function BookingsPage({
       } else {
         setSettings(DEFAULT_SETTINGS);
       }
-      setItems((bookingsData ?? []) as BookingOrBlock[]);
+      const itemsWithKind = (bookingsData ?? []).map((item: any) => ({
+        ...item,
+        kind: item.kind || 'booking',
+      })) as BookingOrBlock[];
+      setItems(itemsWithKind);
       setLoadingData(false);
     };
 
@@ -362,8 +372,8 @@ export default function BookingsPage({
     setDraft((d) => ({
       ...d,
       ...prefill,
-      date: selectedDate,
-      start_time: prefill?.start_time ?? d.start_time,
+      date: nextDate,
+      start_time: nextStart,
     }));
     setPanelOpen(true);
   };
@@ -421,18 +431,55 @@ export default function BookingsPage({
       return;
     }
 
-    if (draft.kind === 'block') {
+    setSaving(true);
+    try {
+      if (draft.kind === 'block') {
+        const next: BookingOrBlock = {
+          kind: 'block',
+          id: activeId ?? crypto.randomUUID(),
+          station_id: draft.station_id,
+          station_name: station.name,
+          date: draft.date,
+          start_time: draft.start_time,
+          duration_minutes: draft.duration_minutes,
+          reason: draft.reason,
+          created_at: new Date().toISOString(),
+        };
+        const { error } = await supabase.from('bookings').upsert(next, { onConflict: 'id' });
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        setItems((prev) => {
+          const rest = prev.filter((x) => x.id !== next.id);
+          return [...rest, next].sort(
+            (a, b) => combineDateTime(a.date, a.start_time).getTime() - combineDateTime(b.date, b.start_time).getTime()
+          );
+        });
+        setPanelOpen(false);
+        return;
+      }
+
+      const c = draft.customer!;
       const next: BookingOrBlock = {
-        kind: 'block',
+        kind: 'booking',
         id: activeId ?? crypto.randomUUID(),
+        customer_id: c.id,
+        customer_name: c.name || c.phone,
+        customer_phone: c.phone,
         station_id: draft.station_id,
         station_name: station.name,
+        game_type: draft.game_type,
         date: draft.date,
         start_time: draft.start_time,
         duration_minutes: draft.duration_minutes,
-        reason: draft.reason,
+        controllers: draft.game_type === 'ps5' ? draft.controllers : undefined,
+        vr_mode: draft.game_type === 'vr' ? draft.vr_mode : undefined,
+        vr_label: draft.game_type === 'vr' ? draft.vr_label : undefined,
+        notes: draft.notes,
         created_at: new Date().toISOString(),
       };
+
       const { error } = await supabase.from('bookings').upsert(next, { onConflict: 'id' });
       if (error) {
         toast.error(error.message);
@@ -445,41 +492,9 @@ export default function BookingsPage({
         );
       });
       setPanelOpen(false);
-      return;
+    } finally {
+      setSaving(false);
     }
-
-    const c = draft.customer!;
-    const next: BookingOrBlock = {
-      kind: 'booking',
-      id: activeId ?? crypto.randomUUID(),
-      customer_id: c.id,
-      customer_name: c.name || c.phone,
-      customer_phone: c.phone,
-      station_id: draft.station_id,
-      station_name: station.name,
-      game_type: draft.game_type,
-      date: draft.date,
-      start_time: draft.start_time,
-      duration_minutes: draft.duration_minutes,
-      controllers: draft.game_type === 'ps5' ? draft.controllers : undefined,
-      vr_mode: draft.game_type === 'vr' ? draft.vr_mode : undefined,
-      vr_label: draft.game_type === 'vr' ? draft.vr_label : undefined,
-      notes: draft.notes,
-      created_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase.from('bookings').upsert(next, { onConflict: 'id' });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    setItems((prev) => {
-      const rest = prev.filter((x) => x.id !== next.id);
-      return [...rest, next].sort(
-        (a, b) => combineDateTime(a.date, a.start_time).getTime() - combineDateTime(b.date, b.start_time).getTime()
-      );
-    });
-    setPanelOpen(false);
   };
 
   const cancelBooking = async () => {
@@ -830,6 +845,27 @@ export default function BookingsPage({
                         </div>
                         {activeItem.reason ? <div className="mt-2 text-sm">{activeItem.reason}</div> : null}
                       </div>
+                      <div className="flex items-center gap-2 pt-2">
+                        <Button variant="destructive" onClick={() => {
+                          setDeleteConfirm({
+                            title: 'Remove Block?',
+                            description: 'Are you sure you want to remove this block? The station will become available for bookings.',
+                            onConfirm: async () => {
+                              const { error } = await supabase.from('bookings').delete().eq('id', activeItem.id);
+                              if (error) {
+                                toast.error(error.message);
+                                return;
+                              }
+                              setItems(prev => prev.filter(x => x.id !== activeItem.id));
+                              setDeleteConfirm(null);
+                              setPanelOpen(false);
+                              toast.success('Block removed');
+                            }
+                          });
+                        }}>
+                          Remove Block
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -865,7 +901,13 @@ export default function BookingsPage({
                         value={draft.customer}
                         onChange={(c) => setDraft((d) => ({ ...d, customer: c }))}
                         onCreate={async (payload) => {
+                          const maxNum = Math.max(1000, ...customers.map(c => {
+                            const m = c.id.match(/^CUS-(\d+)$/);
+                            return m ? parseInt(m[1], 10) : 0;
+                          }));
+                          const newId = `CUS-${maxNum + 1}`;
                           const createdPayload = {
+                            id: newId,
                             name: payload.name || payload.phone,
                             phone: payload.phone,
                             whatsapp_number: payload.whatsapp_number || payload.phone,
@@ -1047,11 +1089,12 @@ export default function BookingsPage({
                       disabled={
                         isPastDay ||
                         (draft.date === todayYmd && isPastStart(draft.date, draft.start_time)) ||
-                        (draft.kind === 'booking' && !draft.customer)
+                        (draft.kind === 'booking' && !draft.customer) ||
+                        saving
                       }
                       onClick={saveDraft}
                     >
-                      Save Booking
+                      {saving ? 'Saving...' : 'Save Booking'}
                     </Button>
                   </DialogFooter>
                 </div>

@@ -200,7 +200,7 @@ export default function SettingsPage({
 
   const vrCricket = pricingConfig.vr_cricket;
   const vrAdventure = pricingConfig.vr_adventure;
-  const totalStations = useMemo(() => stations.length, [stations]);
+  const totalStations = stations.length;
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -212,6 +212,7 @@ export default function SettingsPage({
           else if (next === 'Inventory') onNavigate?.('inventory');
           else if (next === 'Customers') onNavigate?.('customers');
           else if (next === 'Reports') onNavigate?.('reports');
+          else if (next === 'Settings') onNavigate?.('settings');
         }}
         onLogout={onLogout}
       />
@@ -317,16 +318,16 @@ export default function SettingsPage({
 
             <div className="space-y-2">
               <div className="text-xs font-semibold text-muted-foreground">PS5 (controllers x duration)</div>
-              <div className="hidden grid-cols-6 gap-2 text-[11px] font-medium text-muted-foreground md:grid">
-                {DURATIONS.slice(0, 6).map((duration) => (
+              <div className="hidden grid-cols-8 gap-2 text-[11px] font-medium text-muted-foreground md:grid">
+                {DURATIONS.map((duration) => (
                   <div key={`ps5-header-${duration}`}>{duration} min</div>
                 ))}
               </div>
               {ps5Controllers.map((controller) => (
                 <div key={controller} className="space-y-1">
                   <div className="text-[11px] font-medium text-muted-foreground">{controller} controller{controller > 1 ? 's' : ''}</div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
-                  {DURATIONS.slice(0, 6).map((duration) => {
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-8">
+                  {DURATIONS.map((duration) => {
                     const key = `${controller}-${duration}`;
                     return (
                       <Input

@@ -143,7 +143,11 @@ export default function BillingPage({
   }, {});
 
   const createCustomer = (payload: { name?: string; phone: string; whatsapp_number?: string }) => {
-    const customerId = `CUS-${1000 + customers.length + 1}`;
+    const maxNum = Math.max(1000, ...customers.map(c => {
+      const m = c.id.match(/^CUS-(\d+)$/);
+      return m ? parseInt(m[1], 10) : 0;
+    }));
+    const customerId = `CUS-${maxNum + 1}`;
     const created: Customer = {
       id: customerId,
       name: payload.name || payload.phone,
@@ -175,7 +179,7 @@ export default function BillingPage({
     pointsEarned: number; pointsRedeemed: number;
     customerId?: string; customerName?: string; customerPhone?: string;
     items: BillItem[];
-  }) => {
+  }): Promise<boolean> => {
     const billId = `BILL-${Date.now()}`;
     const { error } = await supabase.from('bills').insert({
       id: billId,
@@ -191,7 +195,8 @@ export default function BillingPage({
       items: opts.items,
       created_at: new Date().toISOString(),
     });
-    if (error) console.error('Bill record save failed:', error.message);
+    if (error) { toast.error(`Bill save failed: ${error.message}`); return false; }
+    return true;
   };
 
   const handleFinalize = async ({
@@ -222,7 +227,8 @@ export default function BillingPage({
     // --- Unlinked bill ---
     if (!selectedCustomer) {
       if (isUnlinked) {
-        await saveBillRecord({ paymentMethod, subtotal, discount, grandTotal, pointsEarned: 0, pointsRedeemed: 0, items: billItems });
+        const saved = await saveBillRecord({ paymentMethod, subtotal, discount, grandTotal, pointsEarned: 0, pointsRedeemed: 0, items: billItems });
+        if (!saved) return;
         toast.success(`Bill finalized · ₹${Math.round(grandTotal)} · Cash Customer`);
         setBillItems([]);
         return;
@@ -242,20 +248,21 @@ export default function BillingPage({
     if (customerError) { toast.error('Failed to update customer stats'); return; }
 
     // --- Save bill record ---
-    await saveBillRecord({
+    const saved = await saveBillRecord({
       paymentMethod, subtotal, discount, grandTotal, pointsEarned, pointsRedeemed,
       customerId: selectedCustomer.id,
       customerName: selectedCustomer.name,
       customerPhone: selectedCustomer.phone,
       items: billItems,
     });
+    if (!saved) return;
 
     const updatedCustomer = { ...selectedCustomer, loyalty_points: updatedPoints, visits: updatedVisits };
     setCustomers((prev) => prev.map((c) => (c.id === selectedCustomer.id ? updatedCustomer : c)));
     setSelectedCustomer(updatedCustomer);
 
     toast.success(`Bill saved · ₹${Math.round(grandTotal)} · ${selectedCustomer.name || selectedCustomer.phone}`);
-    if (selectedCustomer?.whatsapp_number) toast.info(`WhatsApp queued to ${selectedCustomer.whatsapp_number}`);
+    if (selectedCustomer?.whatsapp_number) toast.info(`WhatsApp receipt simulated to ${selectedCustomer.whatsapp_number}`);
 
     setBillItems([]);
     setSelectedCustomer(null);
@@ -266,7 +273,8 @@ export default function BillingPage({
       <Sidebar
         active="Billing"
         onNavigate={(label) => {
-          if (label === 'Bookings') onNavigate?.('bookings');
+          if (label === 'Billing') onNavigate?.('billing');
+          else if (label === 'Bookings') onNavigate?.('bookings');
           else if (label === 'Settings') onNavigate?.('settings');
           else if (label === 'Inventory') onNavigate?.('inventory');
           else if (label === 'Customers') onNavigate?.('customers');
@@ -285,7 +293,7 @@ export default function BillingPage({
         />
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 p-3 sm:p-4 lg:flex-row items-start">
           <div className="flex-1 lg:w-2/3 flex flex-col gap-4 w-full min-w-0">
-            <GameTabs onAddItem={addItem} products={products} productQuantityById={productQuantityById} pricingConfig={pricingConfig} />
+            <GameTabs onAddItem={addItem} products={products} productQuantityById={productQuantityById} pricingConfig={pricingConfig} loyaltySettings={loyaltySettings} />
           </div>
           <div className="w-full lg:w-1/3 lg:min-w-[380px] lg:sticky lg:top-20">
             <BillSummary

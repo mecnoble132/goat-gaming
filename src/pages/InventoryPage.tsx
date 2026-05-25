@@ -210,6 +210,7 @@ export default function InventoryPage({
            else if (next === 'Settings') onNavigate?.('settings');
            else if (next === 'Customers') onNavigate?.('customers');
            else if (next === 'Reports') onNavigate?.('reports');
+           else if (next === 'Inventory') onNavigate?.('inventory');
         }}
         onLogout={onLogout}
       />
@@ -434,7 +435,7 @@ export default function InventoryPage({
                                 className="h-7 w-7 md:h-8 md:w-8 rounded-full hover:bg-primary/20 hover:text-primary"
                                 onClick={() => openEdit(product)}
                               >
-                                <Edit2 size={12} md:size={14} />
+                                <Edit2 size={14} />
                               </Button>
                               <Button 
                                 size="icon" 
@@ -445,7 +446,7 @@ export default function InventoryPage({
                                   setIsDeleteDialogOpen(true);
                                 }}
                               >
-                                <Trash2 size={12} md:size={14} />
+                                <Trash2 size={14} />
                               </Button>
                             </div>
                           </td>

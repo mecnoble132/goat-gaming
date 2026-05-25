@@ -63,7 +63,7 @@ export function BillSummary({
   const redeemableSessions = items.filter(
     (item) => item.item_type === 'session' && ['ps5', 'snooker', 'pool'].includes(String(item.metadata?.game_type))
   );
-  const selectedRedeemSession = redeemableSessions.find((item) => item.id === redeemSessionId) ?? redeemableSessions[0];
+  const selectedRedeemSession = redeemableSessions.find((item) => item.id === redeemSessionId) || null;
   const selectedSessionHours = selectedRedeemSession ? Number(selectedRedeemSession.metadata?.duration_minutes ?? 0) / 60 : 0;
   const maxHoursByPoints = customer
     ? Math.floor(customer.loyalty_points / loyaltySettings.redeem_rate_points) * (loyaltySettings.redeem_rate_minutes / 60)
@@ -75,9 +75,9 @@ export function BillSummary({
   const maxRedeemHours = Math.max(0, Math.min(selectedSessionHours, maxHoursByPoints));
   const redeemHoursNumber = redeemPoints ? Math.min(Number(redeemHours), maxRedeemHours || 0) : 0;
   const perHourPrice = selectedRedeemSession && selectedSessionHours > 0 ? selectedRedeemSession.total_price / selectedSessionHours : 0;
-  const discount = redeemHoursNumber * perHourPrice;
+  const discount = Math.round(redeemHoursNumber * perHourPrice);
   const pointsRedeemed = Math.round((redeemHoursNumber * 60 / loyaltySettings.redeem_rate_minutes) * loyaltySettings.redeem_rate_points);
-  const grandTotal = Math.max(0, subtotal - discount);
+  const grandTotal = Math.round(Math.max(0, subtotal - discount));
 
   const handleFinalize = () => {
     if (items.length === 0) return;
@@ -87,7 +87,7 @@ export function BillSummary({
       subtotal,
       discount,
       grandTotal,
-      pointsEarned: customer ? earnablePoints : 0,
+      pointsEarned: customer ? Math.round(earnablePoints) : 0,
       pointsRedeemed: redeemPoints ? pointsRedeemed : 0,
       isUnlinked: !customer,
     });
@@ -193,6 +193,16 @@ export function BillSummary({
                 onPressedChange={(next) => {
                   if (!canRedeem) return;
                   setRedeemPoints(next);
+                  if (next && redeemableSessions.length > 0) {
+                    const firstSession = redeemableSessions[0];
+                    setRedeemSessionId(firstSession.id);
+                    const sessionHours = Number(firstSession.metadata?.duration_minutes ?? 0) / 60;
+                    const curMax = Math.max(0, Math.min(sessionHours, maxHoursByPoints));
+                    setRedeemHours(curMax >= 1 ? '1' : String(curMax));
+                  } else {
+                    setRedeemSessionId('');
+                    setRedeemHours('1');
+                  }
                 }}
                 className="rounded-full bg-muted data-[state=on]:bg-secondary data-[state=on]:text-secondary-foreground"
               >
@@ -204,7 +214,17 @@ export function BillSummary({
               <div className="grid gap-2">
                 {redeemableSessions.length > 0 ? (
                   <>
-                    <Select value={selectedRedeemSession?.id ?? ''} onValueChange={setRedeemSessionId}>
+                    <Select value={redeemSessionId} onValueChange={(val) => {
+                      setRedeemSessionId(val);
+                      const session = redeemableSessions.find(item => item.id === val);
+                      if (session) {
+                        const sessionHours = Number(session.metadata?.duration_minutes ?? 0) / 60;
+                        const curMax = Math.max(0, Math.min(sessionHours, maxHoursByPoints));
+                        if (Number(redeemHours) > curMax) {
+                          setRedeemHours(curMax >= 1 ? '1' : String(curMax));
+                        }
+                      }
+                    }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select session for redemption" />
                       </SelectTrigger>
@@ -221,11 +241,18 @@ export function BillSummary({
                         <SelectValue placeholder="Select free hours" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Array.from({ length: Math.max(1, Math.floor(maxRedeemHours)) }, (_, index) => index + 1).map((h) => (
-                          <SelectItem key={h} value={String(h)}>
-                            {h} hour(s)
-                          </SelectItem>
-                        ))}
+                        {(() => {
+                          const options = [];
+                          for (let h = 0.25; h <= maxRedeemHours + 0.001; h += 0.25) {
+                            const mins = Math.round(h * 60);
+                            options.push(
+                              <SelectItem key={String(h)} value={String(h)}>
+                                {mins < 60 ? `${mins} mins` : `${h} hour(s) (${mins}m)`}
+                              </SelectItem>
+                            );
+                          }
+                          return options;
+                        })()}
                       </SelectContent>
                     </Select>
                   </>
@@ -246,7 +273,7 @@ export function BillSummary({
           {redeemPoints && (
             <div className="flex justify-between text-xs text-secondary">
               <span>GG Discount</span>
-              <span className="font-mono">-₹{Math.round(discount)}</span>
+              <span className="font-mono">-₹{discount}</span>
             </div>
           )}
           <Separator className="my-2" />
@@ -283,7 +310,7 @@ export function BillSummary({
           </div>
           <Button 
             className="w-full h-11 rounded-md text-sm font-semibold tracking-wide shadow-[0_0_14px_rgba(var(--primary),0.22)] hover:shadow-[0_0_18px_rgba(var(--primary),0.28)] active:scale-[0.99] transition-all bg-primary text-primary-foreground"
-            disabled={items.length === 0 || !customer}
+            disabled={items.length === 0}
             onClick={handleFinalize}
           >
             Finalize Bill · ₹{grandTotal}

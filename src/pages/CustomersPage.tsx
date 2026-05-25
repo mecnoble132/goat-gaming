@@ -147,9 +147,14 @@ export default function CustomersPage({
           .eq('id', editingCustomer.id);
         error = err;
       } else {
+        const maxNum = Math.max(1000, ...customers.map(c => {
+          const m = c.id.match(/^CUS-(\d+)$/);
+          return m ? parseInt(m[1], 10) : 0;
+        }));
+        const newId = `CUS-${maxNum + 1}`;
         const { error: err } = await supabase
           .from('customers')
-          .insert({ ...payload, created_at: new Date().toISOString() });
+          .insert({ id: newId, ...payload, created_at: new Date().toISOString() });
         error = err;
       }
 
@@ -371,7 +376,7 @@ export default function CustomersPage({
                 <tbody className="divide-y divide-border/30">
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                      <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                         <div className="flex flex-col items-center gap-2">
                           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                           <span>Loading customers...</span>
@@ -380,7 +385,7 @@ export default function CustomersPage({
                     </tr>
                   ) : filteredCustomers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground italic">
+                      <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground italic">
                         {search ? `No customers matching "${search}"` : 'No customers yet'}
                       </td>
                     </tr>
@@ -437,7 +442,7 @@ export default function CustomersPage({
                               className="h-7 w-7 md:h-8 md:w-8 rounded-full hover:bg-primary/20 hover:text-primary"
                               onClick={() => openEdit(customer)}
                             >
-                              <Edit2 size={12} md:size={14} />
+                              <Edit2 size={14} />
                             </Button>
                             <Button 
                               size="icon" 
@@ -448,7 +453,7 @@ export default function CustomersPage({
                                 setIsDeleteDialogOpen(true);
                               }}
                             >
-                              <Trash2 size={12} md:size={14} />
+                              <Trash2 size={14} />
                             </Button>
                           </div>
                         </td>
