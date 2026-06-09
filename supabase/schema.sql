@@ -297,3 +297,51 @@ insert into public.customers (id, name, phone, whatsapp_number, loyalty_points, 
 ('CUS-1014', 'Simran Kaur', '9822334455', '9822334455', 85, 3, now() - interval '6 hours'),
 ('CUS-1015', 'Abhishek Ray', '9833445566', '9833445566', 15, 1, now())
 on conflict (phone) do update set id = excluded.id;
+
+-- ─── Atomic stock decrement RPC ────────────────────────────────────────────────
+-- Called by BillingPage.handleFinalize instead of the old read-then-write pattern.
+-- Using a server-side expression (stock_quantity - p_qty) means both concurrent
+-- cashiers cannot both read the same stale value — the UPDATE is serialised by
+-- Postgres row-level locking, so stock is always correct.
+create or replace function public.decrement_stock(p_product_id text, p_qty integer)
+returns void
+language sql
+security definer
+as $$
+  update public.products
+  set    stock_quantity = greatest(0, stock_quantity - p_qty)
+  where  id = p_product_id;
+$$;
+
+-- ─── Performance index for the rolling-window bookings query ───────────────────
+-- BookingsPage filters by date range and station; this composite index makes
+-- that query O(log n) instead of a full table scan.
+create index if not exists bookings_date_station_idx
+  on public.bookings (date, station_id);
+
+-- ─── Profiles column enhancements ──────────────────────────────────────────────
+alter table public.profiles add column if not exists email text;
+alter table public.profiles add column if not exists full_name text;
+
+-- ─── Loyalty Transactions ──────────────────────────────────────────────────────
+create table if not exists public.loyalty_transactions (
+  id text primary key,
+  customer_id text not null references public.customers(id) on delete cascade,
+  bill_id text not null references public.bills(id) on delete cascade,
+  points_earned integer not null default 0,
+  points_redeemed integer not null default 0,
+  type text not null check (type in ('earn', 'redeem')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.loyalty_transactions enable row level security;
+
+drop policy if exists "loyalty_transactions all authenticated" on public.loyalty_transactions;
+create policy "loyalty_transactions all authenticated"
+  on public.loyalty_transactions
+  for all
+  to authenticated
+  using (true)
+  with check (true);
+
+

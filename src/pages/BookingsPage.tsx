@@ -311,11 +311,22 @@ export default function BookingsPage({
         await supabase.from('booking_settings').insert({ id: 1, ...DEFAULT_SETTINGS });
       }
 
+      // Load only a ±30-day rolling window — prevents unbounded growth as history accumulates.
+      // The app re-fetches if the user navigates outside this window.
+      const windowFrom = format(addDays(new Date(), -30), 'yyyy-MM-dd');
+      const windowTo   = format(addDays(new Date(),  30), 'yyyy-MM-dd');
+
       const [{ data: customersRows }, { data: stationsData }, { data: settingsData }, { data: bookingsData }] = await Promise.all([
         supabase.from('customers').select('*').order('created_at', { ascending: false }),
         supabase.from('stations').select('id,name,type').order('name'),
         supabase.from('booking_settings').select('opening_time,closing_time,slot_minutes').limit(1).maybeSingle(),
-        supabase.from('bookings').select('*').order('date').order('start_time'),
+        supabase
+          .from('bookings')
+          .select('*')
+          .gte('date', windowFrom)
+          .lte('date', windowTo)
+          .order('date')
+          .order('start_time'),
       ]);
 
       setCustomers((customersRows ?? []) as Customer[]);
@@ -529,6 +540,8 @@ export default function BookingsPage({
         duration_minutes: activeItem.duration_minutes,
         controllers: activeItem.controllers ?? 2,
         station_name: activeItem.station_name,
+        vr_mode: activeItem.vr_mode,
+        vr_label: activeItem.vr_label,
       })
     );
     onNavigate?.('billing');
@@ -901,17 +914,14 @@ export default function BookingsPage({
                         value={draft.customer}
                         onChange={(c) => setDraft((d) => ({ ...d, customer: c }))}
                         onCreate={async (payload) => {
-                          const maxNum = Math.max(1000, ...customers.map(c => {
-                            const m = c.id.match(/^CUS-(\d+)$/);
-                            return m ? parseInt(m[1], 10) : 0;
-                          }));
-                          const newId = `CUS-${maxNum + 1}`;
+                          const newId = `CUS-${crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
                           const createdPayload = {
                             id: newId,
                             name: payload.name || payload.phone,
                             phone: payload.phone,
                             whatsapp_number: payload.whatsapp_number || payload.phone,
                             loyalty_points: 0,
+                            visits: 0,
                           };
                           const { data, error } = await supabase
                             .from('customers')
@@ -919,7 +929,7 @@ export default function BookingsPage({
                             .select('*')
                             .single();
                           if (error) {
-                            alert(error.message);
+                            toast.error(error.message);
                             return;
                           }
                           const created = data as Customer;

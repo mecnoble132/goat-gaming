@@ -8,21 +8,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-
-type Bill = {
-  id: string;
-  customer_id: string | null;
-  customer_name: string;
-  customer_phone: string | null;
-  payment_method: string;
-  subtotal: number;
-  discount: number;
-  grand_total: number;
-  points_earned: number;
-  points_redeemed: number;
-  items: Array<{ item_name: string; item_type: string; quantity: number; total_price: number }>;
-  created_at: string;
-};
+import { Bill } from '@/types';
 
 const PRESET_RANGES = [
   { label: 'Today', days: 0 },

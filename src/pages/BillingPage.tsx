@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { CustomerStrip } from '@/components/billing/CustomerStrip';
 import { GameTabs } from '@/components/billing/GameTabs';
 import { BillSummary } from '@/components/billing/BillSummary';
-import { Customer, BillItem, Product } from '@/types';
+import { Customer, BillItem, Product, Bill } from '@/types';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_PRICING_CONFIG, GamePricingConfig, normalizePricingConfig } from '@/lib/pricing';
@@ -60,32 +60,48 @@ export default function BillingPage({
             const mins = prefill.duration_minutes;
             const ctrl = prefill.controllers || 2;
             
+            const isVr = type === 'vr';
+            const vrMode = prefill.vr_mode || 'cricket';
+            let vrLabel = prefill.vr_label || '';
+            let match;
+
             if (type === 'ps5') {
               price = pricingConfig.ps5[`${ctrl}-${mins}`] || 0;
             } else if (type === 'snooker' || type === 'pool') {
               price = pricingConfig[type]?.[String(mins)] || 0;
-            } else if (type === 'vr') {
-              const packages = [...pricingConfig.vr_cricket, ...pricingConfig.vr_adventure];
-              const match = packages.find(p => p.minutes === mins);
+            } else if (isVr) {
+              if (vrMode === 'cricket') {
+                match = pricingConfig.vr_cricket?.find(p => p.minutes === mins || p.label === vrLabel);
+              } else if (vrMode === 'adventure') {
+                match = pricingConfig.vr_adventure?.find(p => p.label === vrLabel);
+              }
+              if (!match) {
+                const packages = [...(pricingConfig.vr_cricket || []), ...(pricingConfig.vr_adventure || [])];
+                match = packages.find(p => p.minutes === mins);
+              }
               price = match ? match.price : 0;
+              if (match) vrLabel = match.label;
             } else if (pricingConfig[type]) {
               price = pricingConfig[type][String(mins)] || 0;
             }
 
             if (price > 0 || type) {
               const newItem: BillItem = {
-                id: Math.random().toString(36).substr(2, 9),
+                id: crypto.randomUUID(),
                 bill_id: 'current',
-                item_name: `${type.toUpperCase()} - ${prefill.station_name} (${mins}m)`,
+                item_name: isVr
+                  ? `VR ${vrMode === 'cricket' ? 'Cricket' : 'Adventure'}: ${vrLabel || `${mins}m`}`
+                  : `${type.toUpperCase()} - ${prefill.station_name} (${mins}m)`,
                 item_type: 'session',
                 quantity: 1,
                 unit_price: price,
                 total_price: price,
                 metadata: { 
-                  game_type: type, 
+                  game_type: isVr ? `vr_${vrMode}` : type, 
                   duration_minutes: mins, 
                   controllers: ctrl,
-                  station_name: prefill.station_name
+                  station_name: prefill.station_name,
+                  ...(isVr ? { vr_mode: vrMode, vr_label: vrLabel } : {})
                 }
               };
               setBillItems([newItem]);
@@ -101,7 +117,7 @@ export default function BillingPage({
   }, [customers, pricingConfig]);
 
   const addItem = (item: Omit<BillItem, 'id' | 'bill_id'>) => {
-    const newItem: BillItem = { ...item, id: Math.random().toString(36).substr(2, 9), bill_id: 'current' };
+    const newItem: BillItem = { ...item, id: crypto.randomUUID(), bill_id: 'current' };
     if (item.item_type === 'product') {
       setBillItems((prev) => {
         const existing = prev.find((i) => i.item_type === 'product' && i.item_name === item.item_name);
@@ -120,18 +136,21 @@ export default function BillingPage({
   const removeItem = (id: string) => setBillItems(prev => prev.filter(i => i.id !== id));
 
   const updateQuantity = (id: string, delta: number) => {
-    setBillItems(prev => prev.map(i => {
+    setBillItems(prev => prev.flatMap(i => {
       if (i.id === id && i.item_type === 'product') {
         const product = products.find(p => p.id === i.metadata?.product_id);
-        const newQty = Math.max(0, i.quantity + delta);
-        if (newQty === 0) return i;
+        const newQty = i.quantity + delta;
+        if (newQty <= 0) {
+          toast.success(`Removed ${i.item_name} from bill`);
+          return [];
+        }
         if (delta > 0 && product && newQty > product.stock_quantity) {
           toast.error(`Only ${product.stock_quantity} units available`);
-          return i;
+          return [i];
         }
-        return { ...i, quantity: newQty, total_price: newQty * i.unit_price };
+        return [{ ...i, quantity: newQty, total_price: newQty * i.unit_price }];
       }
-      return i;
+      return [i];
     }));
   };
 
@@ -143,11 +162,8 @@ export default function BillingPage({
   }, {});
 
   const createCustomer = (payload: { name?: string; phone: string; whatsapp_number?: string }) => {
-    const maxNum = Math.max(1000, ...customers.map(c => {
-      const m = c.id.match(/^CUS-(\d+)$/);
-      return m ? parseInt(m[1], 10) : 0;
-    }));
-    const customerId = `CUS-${maxNum + 1}`;
+    // Use a UUID-based customer ID to avoid race conditions with concurrent creates.
+    const customerId = `CUS-${crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
     const created: Customer = {
       id: customerId,
       name: payload.name || payload.phone,
@@ -179,7 +195,7 @@ export default function BillingPage({
     pointsEarned: number; pointsRedeemed: number;
     customerId?: string; customerName?: string; customerPhone?: string;
     items: BillItem[];
-  }): Promise<boolean> => {
+  }): Promise<string | null> => {
     const billId = `BILL-${Date.now()}`;
     const { error } = await supabase.from('bills').insert({
       id: billId,
@@ -195,8 +211,8 @@ export default function BillingPage({
       items: opts.items,
       created_at: new Date().toISOString(),
     });
-    if (error) { toast.error(`Bill save failed: ${error.message}`); return false; }
-    return true;
+    if (error) { toast.error(`Bill save failed: ${error.message}`); return null; }
+    return billId;
   };
 
   const handleFinalize = async ({
@@ -206,7 +222,7 @@ export default function BillingPage({
     subtotal: number; discount: number; grandTotal: number;
     pointsEarned: number; pointsRedeemed: number; isUnlinked: boolean;
   }) => {
-    // --- Update Stock ---
+    // --- Update Stock (atomic: single UPDATE, no pre-read, avoids TOCTOU race) ---
     const productCounts: Record<string, number> = {};
     billItems.forEach(item => {
       if (item.item_type === 'product' && item.metadata?.product_id) {
@@ -214,12 +230,13 @@ export default function BillingPage({
       }
     });
     for (const [productId, usedQty] of Object.entries(productCounts)) {
-      const { data: cur, error: fe } = await supabase.from('products').select('stock_quantity').eq('id', productId).single();
-      if (fe) { toast.error(`Stock fetch failed for ${productId}`); continue; }
-      if (cur) {
-        const { error: ue } = await supabase.from('products').update({ stock_quantity: Math.max(0, cur.stock_quantity - usedQty) }).eq('id', productId);
-        if (ue) toast.error(`Stock update failed: ${ue.message}`);
-      }
+      // Single atomic UPDATE — Postgres evaluates the expression server-side,
+      // so no TOCTOU race is possible between concurrent cashiers.
+      const { error: stockErr } = await supabase.rpc('decrement_stock', {
+        p_product_id: productId,
+        p_qty: usedQty,
+      });
+      if (stockErr) toast.error(`Stock update failed: ${stockErr.message}`);
     }
     const { data: freshProducts } = await supabase.from('products').select('*').order('name');
     if (freshProducts) setProducts(freshProducts);
@@ -227,8 +244,8 @@ export default function BillingPage({
     // --- Unlinked bill ---
     if (!selectedCustomer) {
       if (isUnlinked) {
-        const saved = await saveBillRecord({ paymentMethod, subtotal, discount, grandTotal, pointsEarned: 0, pointsRedeemed: 0, items: billItems });
-        if (!saved) return;
+        const billId = await saveBillRecord({ paymentMethod, subtotal, discount, grandTotal, pointsEarned: 0, pointsRedeemed: 0, items: billItems });
+        if (!billId) return;
         toast.success(`Bill finalized · ₹${Math.round(grandTotal)} · Cash Customer`);
         setBillItems([]);
         return;
@@ -248,14 +265,40 @@ export default function BillingPage({
     if (customerError) { toast.error('Failed to update customer stats'); return; }
 
     // --- Save bill record ---
-    const saved = await saveBillRecord({
+    const billId = await saveBillRecord({
       paymentMethod, subtotal, discount, grandTotal, pointsEarned, pointsRedeemed,
       customerId: selectedCustomer.id,
       customerName: selectedCustomer.name,
       customerPhone: selectedCustomer.phone,
       items: billItems,
     });
-    if (!saved) return;
+    if (!billId) return;
+
+    // --- Save loyalty transactions ---
+    if (pointsEarned > 0) {
+      const { error: earnError } = await supabase.from('loyalty_transactions').insert({
+        id: `LTX-${crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`,
+        customer_id: selectedCustomer.id,
+        bill_id: billId,
+        points_earned: pointsEarned,
+        points_redeemed: 0,
+        type: 'earn',
+        created_at: new Date().toISOString(),
+      });
+      if (earnError) toast.error(`Failed to log loyalty points earned: ${earnError.message}`);
+    }
+    if (pointsRedeemed > 0) {
+      const { error: redeemError } = await supabase.from('loyalty_transactions').insert({
+        id: `LTX-${crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`,
+        customer_id: selectedCustomer.id,
+        bill_id: billId,
+        points_earned: 0,
+        points_redeemed: pointsRedeemed,
+        type: 'redeem',
+        created_at: new Date().toISOString(),
+      });
+      if (redeemError) toast.error(`Failed to log loyalty points redeemed: ${redeemError.message}`);
+    }
 
     const updatedCustomer = { ...selectedCustomer, loyalty_points: updatedPoints, visits: updatedVisits };
     setCustomers((prev) => prev.map((c) => (c.id === selectedCustomer.id ? updatedCustomer : c)));

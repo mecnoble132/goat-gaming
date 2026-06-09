@@ -110,12 +110,16 @@ export default function CustomersPage({
   const stats = useMemo(() => {
     const totalCustomers = customers.length;
     const totalLoyaltyPoints = customers.reduce((acc, c) => acc + (c.loyalty_points || 0), 0);
-    const topCustomer = customers.reduce((prev, current) => 
-      ((prev.loyalty_points || 0) > (current.loyalty_points || 0)) ? prev : current, 
-      customers[0]
-    );
+    // Guard: reduce with customers[0] as seed crashes on an empty array.
+    const topCustomer = customers.length > 0
+      ? customers.reduce((prev, current) =>
+          ((prev.loyalty_points || 0) > (current.loyalty_points || 0)) ? prev : current,
+          customers[0]
+        )
+      : null;
     return { totalCustomers, totalLoyaltyPoints, topCustomer };
   }, [customers]);
+
 
   const toggleSort = (key: keyof Customer | 'joined') => {
     setSortConfig(prev => ({
@@ -147,11 +151,8 @@ export default function CustomersPage({
           .eq('id', editingCustomer.id);
         error = err;
       } else {
-        const maxNum = Math.max(1000, ...customers.map(c => {
-          const m = c.id.match(/^CUS-(\d+)$/);
-          return m ? parseInt(m[1], 10) : 0;
-        }));
-        const newId = `CUS-${maxNum + 1}`;
+        // Use a UUID-based ID to prevent races between concurrent staff members creating customers.
+        const newId = `CUS-${crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
         const { error: err } = await supabase
           .from('customers')
           .insert({ id: newId, ...payload, created_at: new Date().toISOString() });

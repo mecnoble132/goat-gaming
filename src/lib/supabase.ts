@@ -7,14 +7,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   const missing = [];
   if (!supabaseUrl) missing.push('VITE_SUPABASE_URL');
   if (!supabaseAnonKey) missing.push('VITE_SUPABASE_ANON_KEY');
-  
-  const errorMsg = `Supabase configuration missing: ${missing.join(', ')}. Please check your Vercel Environment Variables and ensure they start with VITE_.`;
-  console.error(errorMsg);
-  // We'll export a mock client or let it fail gracefully, but we should notify the user
+  console.error(`Supabase configuration missing: ${missing.join(', ')}. Please ensure they are set in your .env.local or environment variables.`);
 }
 
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder-url.supabase.co', 
+  supabaseUrl || 'https://placeholder-url.supabase.co',
   supabaseAnonKey || 'placeholder-key'
 );
 

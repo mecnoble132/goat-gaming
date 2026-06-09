@@ -40,14 +40,17 @@ export interface Product {
 
 export interface Bill {
   id: string;
-  customer_id?: string;
-  total_amount: number;
-  subtotal: number;
-  discount_amount: number;
+  customer_id: string | null;
+  customer_name: string;
+  customer_phone: string | null;
   payment_method: 'cash' | 'upi' | 'card';
-  staff_id: string;
+  subtotal: number;
+  discount: number;
+  grand_total: number;
+  points_earned: number;
+  points_redeemed: number;
+  items: BillItem[];
   created_at: string;
-  status: 'finalized' | 'cancelled';
 }
 
 export interface BillItem {
